@@ -1,1 +1,4 @@
 *.tar
+*.log
+*.h5
+__pycache__

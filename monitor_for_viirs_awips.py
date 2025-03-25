@@ -2,6 +2,8 @@
 
 # This thing is called "monitor..." but it is actually the main proccessing code - FINLEY
 
+#--- Test version, run on polarbear3 with python3
+
 from datetime import datetime, timedelta
 import argparse, glob, gzip, logging, math, os, shutil, subprocess, time
 
