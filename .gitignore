@@ -3,3 +3,4 @@
 *.h5
 *.tif
 __pycache__
+viirs_to_awips/
