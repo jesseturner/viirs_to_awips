@@ -2,5 +2,7 @@
 *.log
 *.h5
 *.tif
+*.nc
+*.png
 __pycache__
 viirs_to_awips/

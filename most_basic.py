@@ -8,8 +8,8 @@ import re
 def main():
 
     #--- Output desired
-    config_file = "config_geotiff.yaml"
-    #config_file = "config_awips.yaml"
+    #config_file = "config_geotiff.yaml"
+    config_file = "config_awips.yaml"
 
     #--- Load in the config parameters
     with open(config_file, "r") as f:
@@ -20,6 +20,7 @@ def main():
     reader_name = config["reader_name"]
     writer_name = config["writer_name"]
     products_list = config["products_list"]
+    sector_id = config["sector_id"]
 
     #--- Retrieve the VIIRS data
     def extract_time_str(path):
@@ -29,7 +30,7 @@ def main():
             return f"{hour}:{minute} UTC"
         return "unknown time"
 
-    file_list = glob.glob(viirs_pattern)
+    file_list = sorted(glob.glob(viirs_pattern))
     first_path, last_path = Path(file_list[0]), Path(file_list[-1])
 
     region = first_path.parts[3]
@@ -49,6 +50,7 @@ def main():
         '-r', reader_name,
         '-w', writer_name,
         '-p', products_list,
+        '--sector-id', sector_id,
         '-f'
     ] + file_list
     subprocess.call(cmd, cwd=base_dir)
