@@ -1,10 +1,12 @@
 
 
 base_dir: "/home/jturner/VIIRS_to_AWIPS/"
-viirs_pattern: "/mnt/viirs/WI-CONUS/NPP/SDR-MBand/2025/03/25/?????_npp_d20250325_t22*"
+viirs_pattern: "/mnt/viirs/WI-CONUS/NPP/SDR-MBand/2025/03/25/SVM08_npp_d20250325_t1*"
 
 p2g_source: '/local/polar2grid_v_3_1/bin/polar2grid.sh'
 reader_name: 'viirs_sdr'
 writer_name: 'geotiff'
 products_list: 'm08'
+grid_name: 'us_viirs2awips_m'
 sector_id: 'LCC'
+grid_configs: 'custom_grids.conf'

@@ -21,6 +21,8 @@ def main():
     writer_name = config["writer_name"]
     products_list = config["products_list"]
     sector_id = config["sector_id"]
+    grid_name = config["grid_name"]
+    grid_configs = config["grid_configs"]
 
     #--- Retrieve the VIIRS data
     def extract_time_str(path):
@@ -50,7 +52,9 @@ def main():
         '-r', reader_name,
         '-w', writer_name,
         '-p', products_list,
+        '-g', grid_name,
         '--sector-id', sector_id,
+        '--grid-configs', grid_configs,
         '-f'
     ] + file_list
     subprocess.call(cmd, cwd=base_dir)
