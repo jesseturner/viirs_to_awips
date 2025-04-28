@@ -29,9 +29,16 @@ dataset.close()
 
 
 #--- File from jpss-cloud4
-nc_file = 'old_setup_example/RAMMB_VIIRS_M16_20250422_0758_002.nc.gz'
-with gzip.open(nc_file, 'rb') as f:
-    dataset = netCDF4.Dataset(f, 'r')
+import shutil
+nc_gz_file = 'old_setup_example/RAMMB_VIIRS_M16_20250422_0758_002.nc.gz'
+nc_file = 'old_setup_example/RAMMB_VIIRS_M16_20250422_0758_002.nc'
+
+# First decompress the .gz
+with gzip.open(nc_gz_file, 'rb') as f_in, open(nc_file, 'wb') as f_out:
+    shutil.copyfileobj(f_in, f_out)
+
+# Then open the uncompressed NetCDF file
+dataset = netCDF4.Dataset(nc_file, 'r')
 
 # List all variable names
 print(dataset.variables.keys())
