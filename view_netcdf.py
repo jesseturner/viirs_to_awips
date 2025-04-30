@@ -1,8 +1,6 @@
 import netCDF4
 import matplotlib.pyplot as plt
-import gzip
 import os
-import shutil
 
 #--- Local file to view
 nc_file = 'awips_example_data/SSEC_AII_npp_viirs_m08_LCC_T001_20250325_1033.nc'
@@ -28,44 +26,6 @@ print(f"Data: {variable[:]}")  # Print the entire array (or subset it)
 # Plot the data
 plt.imshow(variable, cmap='viridis')
 plt.title("NetCDF Visualization")
-plt.savefig(save_file, dpi=200, bbox_inches='tight')
-
-# Close the dataset
-dataset.close()
-
-
-#--- File from jpss-cloud4
-nc_gz_file = 'awips_example_data_original/RAMMB_VIIRS_M16_20250422_0758_002.nc.gz'
-
-base_name = os.path.basename(nc_gz_file)  # 'RAMMB_VIIRS_M16_20250422_0758_002.nc.gz'
-name_without_gz = base_name.replace('.nc.gz', '')  # 'RAMMB_VIIRS_M16_20250422_0758_002'
-nc_file = os.path.join('awips_example_data_original', f'{name_without_gz}.nc')
-save_name = '_'.join(name_without_gz.split('_')[2:])  # 'M16_20250422_0758_002'
-save_file = os.path.join('awips_example_data_original', save_name)
-
-# First decompress the .gz
-with gzip.open(nc_gz_file, 'rb') as f_in, open(nc_file, 'wb') as f_out:
-    shutil.copyfileobj(f_in, f_out)
-
-# Then open the uncompressed NetCDF file
-dataset = netCDF4.Dataset(nc_file, 'r')
-
-# List all variable names
-print(dataset.variables.keys())
-
-# Inspect a specific variable
-var_name = 'data'  # Replace with the variable you want to inspect
-variable = dataset.variables[var_name]
-
-# Print variable details
-print(f"Dimensions: {variable.dimensions}")
-print(f"Shape: {variable.shape}")
-print(f"Data: {variable[:]}")  # Print the entire array (or subset it)
-
-
-# Plot the data
-plt.imshow(variable, cmap='viridis')
-plt.title("NetCDF Visualization (jpss-cloud4)")
 plt.savefig(save_file, dpi=200, bbox_inches='tight')
 
 # Close the dataset
