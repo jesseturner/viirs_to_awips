@@ -21,7 +21,7 @@ def main(raw_args=None):
     parser.add_argument('-d', '--file-date', type=str,
                         help='Necessary if the file folder to search is not today')
 
-    recent_file_threshold_default = 5 * 60
+    recent_file_threshold_default = 55 * 60
     recent_file_threshold = recent_file_threshold_default
     orbit_to_process = None
     bands_to_process = ['m', 'i']
@@ -127,13 +127,13 @@ def main(raw_args=None):
 
     band_params = {
         'm': {
-            'band_dir': '/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/' + str(julian_day) + '/',
+            'band_dir': '/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/' + file_year + '/' + str(julian_day) + '/',
             'prod_prefixes': ['GMTCO'] + ['SV' + tag for tag in list(m_ldm_file_tags.values())],
             'ldm_file_tags': m_ldm_file_tags,
             'output_prod_name': 'VIIRS'
         },
         'i': {
-            'band_dir': '/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-IBand/' + str(julian_day) + '/',
+            'band_dir': '/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-IBand/' + file_year + '/' + str(julian_day) + '/',
             'prod_prefixes': ['GITCO'] + ['SV' + tag for tag in list(i_ldm_file_tags.values())],
             'ldm_file_tags': i_ldm_file_tags,
             'output_prod_name': 'VIIRS'

@@ -6,4 +6,3 @@
 *.png
 *.gz
 __pycache__
-viirs_to_awips/
