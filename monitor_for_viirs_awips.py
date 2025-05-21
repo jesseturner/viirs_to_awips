@@ -59,7 +59,7 @@ def main(raw_args=None):
 
     datestamp = str(year) + '%02d' % month + '%02d' % day
     last_time_datestamp = datestamp
-    utc_timestamp = '%02d' % current_dt.hour + '%02d' % current_dt.minute + '%02d' % current_dt.second
+    utc_timestamp = current_dt.strftime('%H%M%S')
 
     base_dir = '/home/jturner/VIIRS_to_AWIPS/'
 
