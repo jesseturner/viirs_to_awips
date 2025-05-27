@@ -6,5 +6,5 @@
 *.png
 *.gz
 __pycache__
-/viirs_to_awips_env
+/view_example/viirs_to_awips_env
 /to_ldm

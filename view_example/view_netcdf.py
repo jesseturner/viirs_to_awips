@@ -5,7 +5,7 @@ import gzip
 import shutil
 
 #--- File from jpss-cloud4
-file_path = 'to_ldm/RAMMB_VIIRS_I01_20250521_1902_075.nc.gz'
+file_path = '../to_ldm/RAMMB_VIIRS_I01_20250521_1902_075.nc.gz'
 
 nc_file = file_path.replace('.nc.gz', '')  # 'RAMMB_VIIRS_M16_20250422_0758_002'
 save_name = '_'.join(nc_file.split('_')[2:])  # 'M16_20250422_0758_002'
