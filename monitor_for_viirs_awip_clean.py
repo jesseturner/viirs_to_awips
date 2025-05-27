@@ -1,25 +1,16 @@
-# FYI, writing this for Python 2 compatibility
-
-# This thing is called "monitor..." but it is actually the main proccessing code - FINLEY
+#--- My version, cleaning up and fixing issues
+#------ run on polarbear3 with python3
+#------ rename to make it more clear this is the main processing code
 
 from datetime import datetime, timedelta
 import argparse, glob, gzip, logging, math, os, shutil, subprocess, time
 
 
 def main(raw_args=None):
-    parser = argparse.ArgumentParser(description='Process incoming data from /mnt/viirs/WI-CONUS/NPP for AWIPS ingestion')
-    parser.add_argument('-t', '--time', type=int,
-                        help='Only bands with a new file in the last t seconds will be processed')
-    parser.add_argument('-b', '--orbit', type=str,
-                        help='Ignore the time search and only process files for orbit b (can omit the leading b)')
-    parser.add_argument('-f', '--freq-band', type=str,
-                        help='Only process the files for the indicated band groupings (valid inputs are "i" and "m"')
-    parser.add_argument('-s', '--satellite', type=str,
-                        help='Only process the files for the indicated band groupings (valid inputs are "i" and "m"')
-    parser.add_argument('-d', '--file-date', type=str,
-                        help='Necessary if the file folder to search is not today')
-
-    recent_file_threshold_default = 55 * 60
+    
+    #--- setting up variables
+    base_dir = '/home/jturner/VIIRS_to_AWIPS/'
+    recent_file_threshold_default = 50 * 60 #--- time range to process, files from most recent minutes
     recent_file_threshold = recent_file_threshold_default
     orbit_to_process = None
     bands_to_process = ['m', 'i']
@@ -31,10 +22,32 @@ def main(raw_args=None):
     month = current_dt.month
     day = current_dt.day
 
+    #--- putting current datetime into str format
     file_year = str(year)
     file_month = '%02d' % month
     file_day = '%02d' % day
 
+    datestamp = str(year) + '%02d' % month + '%02d' % day
+    last_time_datestamp = datestamp
+    utc_timestamp = current_dt.strftime('%H%M%S')
+
+    julian_day = datetime(int(file_year), int(file_month), int(file_day)).timetuple().tm_yday
+
+
+    #--- checking for incoming arguments that would change processing
+    
+    parser = argparse.ArgumentParser(description='Process incoming data from /mnt/viirs/WI-CONUS/NPP for AWIPS ingestion')
+    parser.add_argument('-t', '--time', type=int,
+                        help='Only bands with a new file in the last t seconds will be processed')
+    parser.add_argument('-b', '--orbit', type=str,
+                        help='Ignore the time search and only process files for orbit b (can omit the leading b)')
+    parser.add_argument('-f', '--freq-band', type=str,
+                        help='Only process the files for the indicated band groupings (valid inputs are "i" and "m"')
+    parser.add_argument('-s', '--satellite', type=str,
+                        help='Only process the files for the indicated band groupings (valid inputs are "i" and "m"')
+    parser.add_argument('-d', '--file-date', type=str,
+                        help='Necessary if the file folder to search is not today')
+    
     args = parser.parse_args(raw_args)
     if args.time:
         recent_file_threshold = args.time
@@ -55,25 +68,20 @@ def main(raw_args=None):
         file_month = str(args.file_date[4:5 + 1])
         file_day = str(args.file_date[6:7 + 1])
 
-    datestamp = str(year) + '%02d' % month + '%02d' % day
-    last_time_datestamp = datestamp
-    utc_timestamp = current_dt.strftime('%H%M%S')
 
-    base_dir = '/home/jturner/VIIRS_to_AWIPS/'
-
+#--- checking for when to process based on log files
     logging_dir = base_dir + 'logs/'
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
-    elif recent_file_threshold == recent_file_threshold_default:
-        # If the user didn't manually change the threshold, attempt to parse how long it's been since the last run
+    elif recent_file_threshold == recent_file_threshold_default: #--- if no argument passed for time threshold
         calculate_recent_file_threshold = True
-        last_time_log = last_time_datestamp + '.log'
-        if not os.path.exists(logging_dir + last_time_log):
+        last_time_log = last_time_datestamp + '.log' #--- create log file for current datetime
+        if not os.path.exists(logging_dir + last_time_log): #--- if there is no log for current datetime, check yesterday
             yesterday_dt = datetime.now() - timedelta(days=1)
             last_time_datestamp = (str(yesterday_dt.year) + '%02d' % yesterday_dt.month + '%02d' % yesterday_dt.day)
             last_time_log = last_time_datestamp + '.log'
-            if not os.path.exists(logging_dir + last_time_log):
-                calculate_recent_file_threshold = False  # Something is really wrong, so just go with the default
+            if not os.path.exists(logging_dir + last_time_log): #--- if there is no log for yesterday, use default time threshold
+                calculate_recent_file_threshold = False
 
         # FINLEY NOTES:  I don't understand why folks do this - look for a 'bread crumb' from the last time the
         #                processing worked correctly.  I think it is better to just look to see if the current
@@ -81,48 +89,41 @@ def main(raw_args=None):
         #                the processing loop should start with the most recent data and then backfill what is
         #                missing (within reason).
         ##########################################################
-        if calculate_recent_file_threshold:
+        if calculate_recent_file_threshold: #--- determining how long to step back in time using the log
             with open(logging_dir + last_time_log, 'r') as f:
                 contents = f.readlines()
-                # LOCK line times are not what we're looking for - we want to know the last "Finished" which is an INFO
+                #--- grabbing the last datetime in the log
                 info_lines = [l for l in contents if 'LOCK:' not in l]
-
                 last_utc_time = info_lines[-1].split('Z')[0][-6:]
                 last_utc_dt = datetime.strptime(last_time_datestamp + last_utc_time, "%Y%m%d%H%M%S")
-                # Cap at an hour because if the script ever ran that long, we'd have to manually intervene anyway
+                #--- cap the time threshold at an hour back
                 recent_file_threshold = min(int(math.ceil((current_dt - last_utc_dt).total_seconds())), 3600)
 
+    #--- adding the logging information
     logging.basicConfig(filename=logging_dir + datestamp + '.log', level=logging.INFO)
     log_prefix = ' ' + utc_timestamp + 'Z - '
     logging.info(log_prefix + 'Starting at ' + time.ctime())
     logging.info(log_prefix + 'Checking last ' + str(recent_file_threshold) + ' seconds for new files')
 
-    # Added this so we have an isolated workspace instead of reusing base_dir for everything (if things don't finish
-    # in the allotted 5 minutes, it could cause issues)
+    #--- creating a YYYYMMDD_hhmmss dir for an isolated workspace
     dtstamp_dir = base_dir + datestamp + '_' + utc_timestamp + '/'
     if not os.path.exists(dtstamp_dir):
         os.makedirs(dtstamp_dir)
 
+    #--- creating the output directories
     final_dir = base_dir + 'viirs_awips/'
     if not os.path.exists(final_dir):
         os.makedirs(final_dir)
-
     copy_to_ldm_dir = base_dir + 'to_ldm/'
     if not os.path.exists(copy_to_ldm_dir):
         os.makedirs(copy_to_ldm_dir)
 
-    # Please note: these could probably just be a list since we're no longer labeling R/G/B but I'm leaving this
-    # implementation in case things ever get switched back
-    # I removed 'm10': 'M10' today because it's apparently the same wavelength as i03 and unneeded (lower res)
-    #m_ldm_file_tags = {'m08': 'M08', 'm11': 'M11', 'm13': 'M13'}
-    # I added M14, M15, and M16 - APR 2024 - FINLEY
-    # When you add/remove products, you need to update the ldm injection script on the LDM server (cira-ldm1)
+    #--- list of products processed
+    #------ (previous note) when you add/remove products, you need to update the ldm injection script on the LDM server (cira-ldm1)
     m_ldm_file_tags = {'m08': 'M08', 'm11': 'M11', 'm13': 'M13', 'm14': 'M14', 'm15': 'M15', 'm16': 'M16'}
     i_ldm_file_tags = {'i01': 'I01', 'i02': 'I02', 'i03': 'I03', 'i04': 'I04', 'i05': 'I05'}
 
-    #--- Added by Jesse (2025-05-08)
-    julian_day = datetime(int(file_year), int(file_month), int(file_day)).timetuple().tm_yday
-
+    #--- set up dictionaries for each band
     band_params = {
         'm': {
             'band_dir': '/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/' + file_year + '/' + str(julian_day) + '/',
@@ -137,13 +138,13 @@ def main(raw_args=None):
             'output_prod_name': 'VIIRS'
         }
     }
-    raw_sat_names = {'NPP': 'npp', 'J01': 'noaa20' , 'J02': 'noaa21'}
-    processing_dir = ''
 
-    for sat in sats_to_process:
+    raw_sat_names = {'NPP': 'npp', 'J01': 'noaa20' , 'J02': 'noaa21'}
+
+    for sat in sats_to_process:    #--- NPP, J01, J02
         raw_sat_name = raw_sat_names[sat]
-        for band in bands_to_process:
-            band_dir = band_params[band]['band_dir'].replace('_replacewithsat_', sat)  # either NPP or J01 or J02
+        for band in bands_to_process:   #--- m, i
+            band_dir = band_params[band]['band_dir'].replace('_replacewithsat_', sat)
             prod_prefixes = band_params[band]['prod_prefixes']
             ldm_file_tags = band_params[band]['ldm_file_tags']
             p2g_file_tags = list(ldm_file_tags.keys())
@@ -151,34 +152,37 @@ def main(raw_args=None):
 
             orbits = []
 
-            if orbit_to_process:
+            if orbit_to_process:    #--- if argument added for orbit
                 orbits = [orbit_to_process]
             else:
                 recent_files = [] if not os.path.exists(band_dir) else \
-                    [f for f in os.listdir(band_dir) if
+                    [f for f in os.listdir(band_dir) if #--- if band dir exists, get files within time threshold
                      (current_time - os.path.getctime(band_dir + f)) < recent_file_threshold]
 
-                for filename in recent_files:
+                for filename in recent_files: #--- create orbits list from recent files
                     orbit = filename.split('_')[5]
                     if orbit not in orbits:
                         orbits.append(orbit)
 
-            for orbit in orbits:
+            for orbit in orbits: 
+                #--- create list of recent orbit files
                 orbit_files_recent = [f for f in os.listdir(band_dir) if
                                       f[0:5] in prod_prefixes and '_' + orbit + '_' in f]
 
+                #--- count number of orbit files, warning if one of the bands has a different number
+                #------ I bet there is a simpler way of doing this
                 num_files = len([f for f in orbit_files_recent if f[0:5] == prod_prefixes[0]])
                 orbit_not_ready = False
                 for prefix in prod_prefixes:
                     if num_files != len([f for f in orbit_files_recent if f[0:5] == prefix]):
                         orbit_not_ready = True
                         break
-
                 if orbit_not_ready:
                     logging.warning(
                         log_prefix + sat + ' Orbit ' + orbit + ' has unequal number of files for ' + band + ' bands - not processing')
                     continue
 
+                #--- making the processing directory which will be inside YYYYMMDD_hhmmss
                 logging.info(log_prefix + sat + ' Orbit ' + orbit + ' meets criteria for processing ' + band + ' bands')
                 processing_dir = dtstamp_dir + sat + '_' + band + '_' + orbit + '/'
                 os.makedirs(processing_dir)
@@ -188,25 +192,30 @@ def main(raw_args=None):
                     for filepath in glob.glob(band_dir + prefix + '*_' + orbit + '_*'):
                         shutil.copy(filepath, raw_files_dir)
 
+                #--- running the polar2grid package
+                #------ this is the very core of the processing
                 print(log_prefix + 'Running p2g for ' + sat + ' ' + band + ' band ')
                 p2g_status = subprocess.call(
                     ['bash', base_dir + 'process_viirs_for_awips_' + band + '.sh', raw_files_dir], cwd=processing_dir)
                 print(log_prefix + 'Finished running p2g for ' + sat + ' ' + band + ' band with exit status ' + str(
                     p2g_status))
 
-                # Use this to check if channels are missing because of lack of sun
+                #--- check if channels are missing
+                #------ there is definitely a simpler way of doing this
                 missing_p2g_tags = ''
                 for p2g_tag in p2g_file_tags:
                     if len(glob.glob(processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc')) == 0:
                         missing_p2g_tags += p2g_tag
-
+                #--- all files are missing tags, likely due to <10% grid coverage
                 if len(missing_p2g_tags) == len(p2g_file_tags):
                     logging.warning(
                         log_prefix + 'No files generated for ' + sat + ' ' + orbit + ' ' + band + ' band; this is most often due to less than 10% of the grid covered')
+                #--- some files are missing tags, likely due to lack of sun
                 elif len(missing_p2g_tags) > 0:
                     logging.warning(
                         log_prefix + 'Not keeping files for ' + sat + ' ' + orbit + ' ' + band + ' band because ' + p2g_tag + ' files are missing; this is most often due to no sun')
 
+                #--- 
                 for p2g_tag in p2g_file_tags:
                     for filepath in glob.glob(
                             processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc'):
@@ -224,7 +233,7 @@ def main(raw_args=None):
                             with open(filepath, 'rb') as f_in, gzip.open(copy_to_ldm_dir + new_filename, 'wb') as f_out:
                                 f_out.writelines(f_in)
                             shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
-                        os.remove(filepath)
+                        os.remove(filepath) #--- remove files from processing directory
 
                 # Move the virrs2scmi logfile(s) (fairly certain they'll only ever be one, but to be safe...)
                 for filepath in glob.glob(processing_dir + 'viirs2scmi*.log'):
