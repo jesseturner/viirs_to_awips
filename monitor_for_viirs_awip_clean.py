@@ -120,7 +120,7 @@ def main(raw_args=None):
 
     #--- list of products processed
     #------ (previous note) when you add/remove products, you need to update the ldm injection script on the LDM server (cira-ldm1)
-    m_ldm_file_tags = {'m08': 'M08', 'm11': 'M11', 'm13': 'M13', 'm14': 'M14', 'm15': 'M15', 'm16': 'M16'}
+    m_ldm_file_tags = {'m08': 'M08', 'm10': 'M10', 'm11': 'M11', 'm12': 'M12', 'm13': 'M13', 'm14': 'M14', 'm15': 'M15', 'm16': 'M16'}
     i_ldm_file_tags = {'i01': 'I01', 'i02': 'I02', 'i03': 'I03', 'i04': 'I04', 'i05': 'I05'}
 
     #--- set up dictionaries for each band

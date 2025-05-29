@@ -19,6 +19,6 @@
     --sector-id LCC \
     -g us_viirs2awips_m \
     -f $1 \
-    -p m08 m11 m13 m14 m15 m16 \
+    -p m08 m10 m11 m12 m13 m14 m15 m16 \
     --grid-configs grids.conf ~/VIIRS_to_AWIPS/niznik_grids.conf \
     --tiles 5 7
