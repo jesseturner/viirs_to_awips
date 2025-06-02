@@ -26,11 +26,8 @@ def main(raw_args=None):
     file_year = str(year)
     file_month = '%02d' % month
     file_day = '%02d' % day
-
-    datestamp = str(year) + '%02d' % month + '%02d' % day
-    last_time_datestamp = datestamp
+    datestamp = file_year + file_month + file_day
     utc_timestamp = current_dt.strftime('%H%M%S')
-
     julian_day = datetime(int(file_year), int(file_month), int(file_day)).timetuple().tm_yday
 
 
@@ -75,11 +72,11 @@ def main(raw_args=None):
         os.makedirs(logging_dir)
     elif recent_file_threshold == recent_file_threshold_default: #--- if no argument passed for time threshold
         calculate_recent_file_threshold = True
-        last_time_log = last_time_datestamp + '.log' #--- create log file for current datetime
+        last_time_log = datestamp + '.log' #--- create log file for current datetime
         if not os.path.exists(logging_dir + last_time_log): #--- if there is no log for current datetime, check yesterday
             yesterday_dt = datetime.now() - timedelta(days=1)
-            last_time_datestamp = (str(yesterday_dt.year) + '%02d' % yesterday_dt.month + '%02d' % yesterday_dt.day)
-            last_time_log = last_time_datestamp + '.log'
+            datestamp = (str(yesterday_dt.year) + '%02d' % yesterday_dt.month + '%02d' % yesterday_dt.day)
+            last_time_log = datestamp + '.log'
             if not os.path.exists(logging_dir + last_time_log): #--- if there is no log for yesterday, use default time threshold
                 calculate_recent_file_threshold = False
 
@@ -95,7 +92,7 @@ def main(raw_args=None):
                 #--- grabbing the last datetime in the log
                 info_lines = [l for l in contents if 'LOCK:' not in l]
                 last_utc_time = info_lines[-1].split('Z')[0][-6:]
-                last_utc_dt = datetime.strptime(last_time_datestamp + last_utc_time, "%Y%m%d%H%M%S")
+                last_utc_dt = datetime.strptime(datestamp + last_utc_time, "%Y%m%d%H%M%S")
                 #--- cap the time threshold at an hour back
                 recent_file_threshold = min(int(math.ceil((current_dt - last_utc_dt).total_seconds())), 3600)
 
@@ -215,7 +212,7 @@ def main(raw_args=None):
                     logging.warning(
                         log_prefix + 'Not keeping files for ' + sat + ' ' + orbit + ' ' + band + ' band because ' + p2g_tag + ' files are missing; this is most often due to no sun')
 
-                #--- 
+                #--- for each file type, names properly and fills with gzip-compressed data
                 for p2g_tag in p2g_file_tags:
                     for filepath in glob.glob(
                             processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc'):
@@ -235,7 +232,7 @@ def main(raw_args=None):
                             shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
                         os.remove(filepath) #--- remove files from processing directory
 
-                # Move the virrs2scmi logfile(s) (fairly certain they'll only ever be one, but to be safe...)
+                # Move the viirs2scmi logfile(s) (fairly certain they'll only ever be one, but to be safe...)
                 for filepath in glob.glob(processing_dir + 'viirs2scmi*.log'):
                     file = os.path.basename(filepath)
                     shutil.copy(filepath, final_dir + file)
@@ -250,6 +247,7 @@ def main(raw_args=None):
                 if not os.listdir(processing_dir):
                     shutil.rmtree(processing_dir)
 
+    #--- if directory is empty, delete it
     if not os.listdir(dtstamp_dir):
         shutil.rmtree(dtstamp_dir)
 
