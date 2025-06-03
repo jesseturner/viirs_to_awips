@@ -5,7 +5,6 @@
 from datetime import datetime, timedelta
 import argparse, glob, gzip, logging, math, os, shutil, subprocess, time
 
-
 def main(raw_args=None):
     
     #--- setting up variables
@@ -41,7 +40,7 @@ def main(raw_args=None):
     parser.add_argument('-f', '--freq-band', type=str,
                         help='Only process the files for the indicated band groupings (valid inputs are "i" and "m"')
     parser.add_argument('-s', '--satellite', type=str,
-                        help='Only process the files for the indicated band groupings (valid inputs are "i" and "m"')
+                        help='Only process the selected satellite ("NPP", "J01", and "J02")')
     parser.add_argument('-d', '--file-date', type=str,
                         help='Necessary if the file folder to search is not today')
     
@@ -163,7 +162,7 @@ def main(raw_args=None):
                 for prefix in prod_prefixes:
                     for filepath in glob.glob(band_dir + prefix + '*_' + orbit + '_*'):
                         shutil.copy(filepath, raw_files_dir)
-
+                        
                 #--- running the polar2grid package
                 #------ this is the very core of the processing
                 print(log_prefix + 'Running p2g for ' + sat + ' ' + band + ' band ')
@@ -185,7 +184,7 @@ def main(raw_args=None):
                 #--- some files are missing tags, likely due to lack of sun
                 elif len(missing_p2g_tags) > 0:
                     logging.warning(
-                        log_prefix + 'Not keeping files for ' + sat + ' ' + orbit + ' ' + band + ' band because ' + p2g_tag + ' files are missing; this is most often due to no sun')
+                        log_prefix + 'Not keeping files for ' + sat + ' ' + orbit + ' ' + band + ' band because ' + missing_p2g_tags + ' files are missing; this is most often due to no sun')
 
                 #--- for each file type, names properly and fills with gzip-compressed data
                 for p2g_tag in p2g_file_tags:
@@ -201,10 +200,10 @@ def main(raw_args=None):
                                         filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
                                         filename_pieces[6][1:] + '.nc.gz')
 
-                        if not missing_p2g_tags:
-                            with open(filepath, 'rb') as f_in, gzip.open(copy_to_ldm_dir + new_filename, 'wb') as f_out:
-                                f_out.writelines(f_in)
-                            shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
+                        #if not missing_p2g_tags: #FIX HERE
+                        with open(filepath, 'rb') as f_in, gzip.open(copy_to_ldm_dir + new_filename, 'wb') as f_out:
+                            f_out.writelines(f_in)
+                        shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
                         os.remove(filepath) #--- remove files from processing directory
 
                 # Move the viirs2scmi logfile(s) (fairly certain they'll only ever be one, but to be safe...)

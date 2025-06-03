@@ -1,0 +1,7 @@
+name: viirs_to_awips
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - h5py
+  - netCDF4
