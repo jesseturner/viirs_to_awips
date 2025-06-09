@@ -9,13 +9,12 @@ def main(raw_args=None):
     
     #--- setting up variables
     base_dir = '/home/jturner/VIIRS_to_AWIPS/'
-    recent_file_threshold_default = 50 * 60 #--- time range to process, files from most recent minutes
+    recent_file_threshold_default = 30 * 60 #--- time range to process, files from most recent minutes
     recent_file_threshold = recent_file_threshold_default
     orbit_to_process = None
     bands_to_process = ['m', 'i']
     sats_to_process = ['NPP', 'J01', 'J02']
 
-    current_time = time.time()
     current_dt = datetime.now()
     year = current_dt.year
     month = current_dt.month
@@ -25,10 +24,9 @@ def main(raw_args=None):
     file_year = str(year)
     file_month = '%02d' % month
     file_day = '%02d' % day
-    datestamp = file_year + file_month + file_day
-    utc_timestamp = current_dt.strftime('%H%M%S')
-    utc_timestamp_colons = current_dt.strftime('%H:%M:%S')
-    julian_day = datetime(int(file_year), int(file_month), int(file_day)).timetuple().tm_yday
+    file_date = file_year + file_month + file_day 
+    current_datetime = current_dt.strftime('%Y%m%d%H%M%S')
+    current_datetime_colons = current_dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
     #--- checking for incoming arguments that would change processing
@@ -42,7 +40,7 @@ def main(raw_args=None):
     parser.add_argument('-s', '--satellite', type=str,
                         help='Only process the selected satellite ("NPP", "J01", and "J02")')
     parser.add_argument('-d', '--file-date', type=str,
-                        help='Necessary if the file folder to search is not today')
+                        help='Run for the full 24 hours of a specific date (YYYYMMDD format)')
     
     args = parser.parse_args(raw_args)
     if args.time:
@@ -69,15 +67,22 @@ def main(raw_args=None):
     logging_dir = base_dir + 'logs/'
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
+    logging.basicConfig(filename=logging_dir + file_date + '.log', level=logging.INFO)
+    log_prefix = f'{current_datetime_colons} Z - '
+
+    #--- creating dates to search for
+    julian_day = datetime(int(file_year), int(file_month), int(file_day)).timetuple().tm_yday
+    timestamp = datetime.strptime(file_date, "%Y%m%d").timestamp()
 
 
-    logging.basicConfig(filename=logging_dir + datestamp + '.log', level=logging.INFO)
-    log_prefix = f'{file_year}-{file_month}-{file_day} {utc_timestamp_colons} Z - '
-    logging.info(log_prefix + 'Starting at ' + time.ctime())
-    logging.info(log_prefix + 'Checking last ' + str(recent_file_threshold/60) + ' minutes for new files')
+    #--- if running for current date for past date
+    if args.file_date:
+        logging.info(f'{log_prefix} Looking for all data from {file_year}-{file_month}-{file_day}')
+    else: 
+        logging.info(f'{log_prefix} Checking last {recent_file_threshold/60} minutes for new files')
 
     #--- creating a YYYYMMDD_hhmmss dir for an isolated workspace
-    dtstamp_dir = base_dir + datestamp + '_' + utc_timestamp + '/'
+    dtstamp_dir = base_dir + current_datetime + '/'
     if not os.path.exists(dtstamp_dir):
         os.makedirs(dtstamp_dir)
 
@@ -125,10 +130,21 @@ def main(raw_args=None):
 
             if orbit_to_process:    #--- if argument added for orbit
                 orbits = [orbit_to_process]
-            else:
+            
+            elif args.file_date:  #--- if running for specific date
+                file_date_str = f"d{file_year}{file_month}{file_day}"
+                matching_files = [
+                    os.path.basename(f) for f in glob.glob(os.path.join(band_dir, f"*{file_date_str}*"))
+                    if re.search(rf"d{file_year}{file_month}{file_day}", f)]
+                for filename in matching_files: #--- create orbits list from recent files
+                    orbit = filename.split('_')[5]
+                    if orbit not in orbits:
+                        orbits.append(orbit)
+
+            else: #--- normal case, when running for recent data
                 recent_files = [] if not os.path.exists(band_dir) else \
                     [f for f in os.listdir(band_dir) if #--- if band dir exists, get files within time threshold
-                     (current_time - os.path.getctime(band_dir + f)) < recent_file_threshold]
+                     (timestamp - os.path.getctime(band_dir + f)) < recent_file_threshold]
 
                 for filename in recent_files: #--- create orbits list from recent files
                     orbit = filename.split('_')[5]
@@ -149,12 +165,9 @@ def main(raw_args=None):
                         orbit_not_ready = True
                         break
                 if orbit_not_ready:
-                    logging.warning(
-                        log_prefix + sat + ' Orbit ' + orbit + ' has unequal number of files for ' + band + ' bands - not processing')
+                    logging.info(f'{sat} orbit {orbit} bands are not fully filled in yet, not processing')
                     continue
 
-                #--- making the processing directory which will be inside YYYYMMDD_hhmmss
-                #logging.info(log_prefix + sat + ' Orbit ' + orbit + ' meets criteria for processing ' + band + ' bands')
 
                 #--- logging the files used
                 filepaths = glob.glob(os.path.join(band_dir, prefix + '*_' + orbit + '_*'))
@@ -168,7 +181,7 @@ def main(raw_args=None):
                         datetime_str = dt.strftime("%Y-%m-%d %H:%M UTC")
                     else:
                         datetime_str = "Unknown date/time"
-                logging.info(f'Processing for {sat} orbit {orbit} {band}-band at {datetime_str}')
+                logging.info(f'Processing {len(filepaths)} files for {sat} orbit {orbit} {band}-band at {datetime_str}')
 
                 #--- processing the files
                 processing_dir = dtstamp_dir + sat + '_' + band + '_' + orbit + '/'
@@ -203,6 +216,7 @@ def main(raw_args=None):
                     logging.info(f'P2G rejected {missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {datetime_str}')
 
                 #--- for each file type, names properly and fills with gzip-compressed data
+                file_count = 1
                 for p2g_tag in p2g_file_tags:
                     for filepath in glob.glob(
                             processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc'):
@@ -216,11 +230,19 @@ def main(raw_args=None):
                                         filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
                                         filename_pieces[6][1:] + '.nc.gz')
 
+                        #--- counting files created
+                        file_count += 1
+
                         if not missing_p2g_tags:
                             with open(filepath, 'rb') as f_in, gzip.open(final_dir + new_filename, 'wb') as f_out:
                                 f_out.writelines(f_in)
                             #shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
                             os.remove(filepath) #--- remove files from processing directory
+
+                #--- logging files created for date
+                pattern = os.path.join(final_dir, f'*{file_year}{file_month}{file_day}*')
+                file_count_total = len(glob.glob(pattern))
+                logging.info(f'Created {file_count} new files. Total for {file_year}-{file_month}-{file_day} is now {file_count_total}.')
 
                 # Move the viirs2scmi logfile(s) (fairly certain they'll only ever be one, but to be safe...)
                 for filepath in glob.glob(processing_dir + 'viirs*.log'):
