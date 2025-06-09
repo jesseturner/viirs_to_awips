@@ -3,7 +3,7 @@
 #------ rename to make it more clear this is the main processing code
 
 from datetime import datetime, timedelta
-import argparse, glob, gzip, logging, math, os, shutil, subprocess, time
+import argparse, glob, gzip, logging, math, os, shutil, subprocess, time, re
 
 def main(raw_args=None):
     
@@ -65,12 +65,12 @@ def main(raw_args=None):
         file_day = str(args.file_date[6:7 + 1])
 
 
-#--- checking for when to process based on log files
+    #--- adding the logging information
     logging_dir = base_dir + 'logs/'
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
 
-    #--- adding the logging information
+
     logging.basicConfig(filename=logging_dir + datestamp + '.log', level=logging.INFO)
     log_prefix = f'{file_year}-{file_month}-{file_day} {utc_timestamp_colons} Z - '
     logging.info(log_prefix + 'Starting at ' + time.ctime())
@@ -85,9 +85,9 @@ def main(raw_args=None):
     final_dir = base_dir + 'viirs_awips/'
     if not os.path.exists(final_dir):
         os.makedirs(final_dir)
-    copy_to_ldm_dir = base_dir + 'to_ldm/'
-    if not os.path.exists(copy_to_ldm_dir):
-        os.makedirs(copy_to_ldm_dir)
+    # copy_to_ldm_dir = base_dir + 'to_ldm/'
+    # if not os.path.exists(copy_to_ldm_dir):
+    #     os.makedirs(copy_to_ldm_dir)
 
     #--- list of products processed
     #------ (previous note) when you add/remove products, you need to update the ldm injection script on the LDM server (cira-ldm1)
@@ -154,13 +154,30 @@ def main(raw_args=None):
                     continue
 
                 #--- making the processing directory which will be inside YYYYMMDD_hhmmss
-                logging.info(log_prefix + sat + ' Orbit ' + orbit + ' meets criteria for processing ' + band + ' bands')
+                #logging.info(log_prefix + sat + ' Orbit ' + orbit + ' meets criteria for processing ' + band + ' bands')
+
+                #--- logging the files used
+                filepaths = glob.glob(os.path.join(band_dir, prefix + '*_' + orbit + '_*'))
+                if filepaths:
+                    filepaths.sort()  #--- sort to follow time order
+                    first_file = os.path.basename(filepaths[0])
+                    match = re.search(r'd(\d{8})_t(\d{2})(\d{2})', first_file)
+                    if match:
+                        date_str, hour, minute = match.groups()
+                        dt = datetime.strptime(f"{date_str}{hour}{minute}", "%Y%m%d%H%M")
+                        datetime_str = dt.strftime("%Y-%m-%d %H:%M UTC")
+                    else:
+                        datetime_str = "Unknown date/time"
+                logging.info(f'Processing for {sat} orbit {orbit} {band}-band at {datetime_str}')
+
+                #--- processing the files
                 processing_dir = dtstamp_dir + sat + '_' + band + '_' + orbit + '/'
                 os.makedirs(processing_dir)
                 raw_files_dir = processing_dir + 'raw_files/'
                 os.makedirs(raw_files_dir)
                 for prefix in prod_prefixes:
-                    for filepath in glob.glob(band_dir + prefix + '*_' + orbit + '_*'):
+                    for filepath in glob.glob(band_dir + prefix + '*_' + orbit + '_*'): 
+                        #--- copying the file
                         shutil.copy(filepath, raw_files_dir)
                         
                 #--- running the polar2grid package
@@ -173,18 +190,17 @@ def main(raw_args=None):
 
                 #--- check if channels are missing
                 #------ there is definitely a simpler way of doing this
-                missing_p2g_tags = ''
+                missing_p2g_tags = []
                 for p2g_tag in p2g_file_tags:
                     if len(glob.glob(processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc')) == 0:
-                        missing_p2g_tags += p2g_tag
+                        missing_p2g_tags.append(p2g_tag)
                 #--- all files are missing tags, likely due to <10% grid coverage
                 if len(missing_p2g_tags) == len(p2g_file_tags):
-                    logging.warning(
-                        log_prefix + 'No files generated for ' + sat + ' ' + orbit + ' ' + band + ' band; this is most often due to less than 10% of the grid covered')
+                    logging.info(f'P2G returned no files for {sat} orbit {orbit} {band}-band at {datetime_str}')
+
                 #--- some files are missing tags, likely due to lack of sun
                 elif len(missing_p2g_tags) > 0:
-                    logging.warning(
-                        log_prefix + 'Not keeping files for ' + sat + ' ' + orbit + ' ' + band + ' band because ' + missing_p2g_tags + ' files are missing; this is most often due to no sun')
+                    logging.info(f'P2G rejected {missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {datetime_str}')
 
                 #--- for each file type, names properly and fills with gzip-compressed data
                 for p2g_tag in p2g_file_tags:
@@ -200,11 +216,11 @@ def main(raw_args=None):
                                         filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
                                         filename_pieces[6][1:] + '.nc.gz')
 
-                        #if not missing_p2g_tags: #FIX HERE
-                        with open(filepath, 'rb') as f_in, gzip.open(copy_to_ldm_dir + new_filename, 'wb') as f_out:
-                            f_out.writelines(f_in)
-                        shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
-                        os.remove(filepath) #--- remove files from processing directory
+                        if not missing_p2g_tags:
+                            with open(filepath, 'rb') as f_in, gzip.open(final_dir + new_filename, 'wb') as f_out:
+                                f_out.writelines(f_in)
+                            #shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
+                            os.remove(filepath) #--- remove files from processing directory
 
                 # Move the viirs2scmi logfile(s) (fairly certain they'll only ever be one, but to be safe...)
                 for filepath in glob.glob(processing_dir + 'viirs*.log'):
