@@ -40,7 +40,7 @@ def main(raw_args=None):
     parser.add_argument('-s', '--satellite', type=str,
                         help='Only process the selected satellite ("NPP", "J01", and "J02")')
     parser.add_argument('-d', '--file-date', type=str,
-                        help='Run for the full 24 hours of a specific date (YYYYMMDD format)')
+                        help='Run for the full 24 hours of a specific date (YYYYMMDD format) or for a specific hour (YYYYMMDDhh format)')
     
     args = parser.parse_args(raw_args)
     if args.time:
@@ -77,7 +77,12 @@ def main(raw_args=None):
 
     #--- if running for current date for past date
     if args.file_date:
-        logging.info(f'{log_prefix} Looking for all data from {file_year}-{file_month}-{file_day}')
+        if len(args.file_date) == 10:
+            logging.info(f'{log_prefix} Looking for data from {file_year}-{file_month}-{file_day} {args.file_date[-2:]}:00 UTC')
+        elif len(args.file_date) == 8:
+            logging.info(f'{log_prefix} Looking for all data from {file_year}-{file_month}-{file_day}')
+        else:
+            raise ValueError("file_date must be in YYYYMMDD or YYYYMMDDhh format")
     else: 
         logging.info(f'{log_prefix} Checking last {recent_file_threshold/60} minutes for new files')
 
@@ -131,15 +136,31 @@ def main(raw_args=None):
             if orbit_to_process:    #--- if argument added for orbit
                 orbits = [orbit_to_process]
             
-            elif args.file_date:  #--- if running for specific date
-                file_date_str = f"d{file_year}{file_month}{file_day}"
+            elif args.file_date:  #--- if running for specific date or date+hour
+                if len(args.file_date) == 10:  #--- format: YYYYMMDDhh
+                    file_year = args.file_date[:4]
+                    file_month = args.file_date[4:6]
+                    file_day = args.file_date[6:8]
+                    file_hour = args.file_date[8:10]
+                    file_date_str = f"d{file_year}{file_month}{file_day}_t{file_hour}"
+                elif len(args.file_date) == 8:  #--- format: YYYYMMDD
+                    file_year = args.file_date[:4]
+                    file_month = args.file_date[4:6]
+                    file_day = args.file_date[6:8]
+                    file_date_str = f"d{file_year}{file_month}{file_day}"
+                else:
+                    raise ValueError("file_date must be in YYYYMMDD or YYYYMMDDhh format")
+
                 matching_files = [
                     os.path.basename(f) for f in glob.glob(os.path.join(band_dir, f"*{file_date_str}*"))
-                    if re.search(rf"d{file_year}{file_month}{file_day}", f)]
-                for filename in matching_files: #--- create orbits list from recent files
+                    if file_date_str in f
+                ]
+
+                for filename in matching_files:  #--- create orbits list from matching files
                     orbit = filename.split('_')[5]
                     if orbit not in orbits:
                         orbits.append(orbit)
+
 
             else: #--- normal case, when running for recent data
                 recent_files = [] if not os.path.exists(band_dir) else \
@@ -181,7 +202,7 @@ def main(raw_args=None):
                         datetime_str = dt.strftime("%Y-%m-%d %H:%M UTC")
                     else:
                         datetime_str = "Unknown date/time"
-                logging.info(f'Processing {len(filepaths)} files for {sat} orbit {orbit} {band}-band at {datetime_str}')
+                logging.info(f'Processing {len(filepaths)} VIIRS files for {sat} orbit {orbit} {band}-band at {datetime_str}')
 
                 #--- processing the files
                 processing_dir = dtstamp_dir + sat + '_' + band + '_' + orbit + '/'
@@ -216,7 +237,7 @@ def main(raw_args=None):
                     logging.info(f'P2G rejected {missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {datetime_str}')
 
                 #--- for each file type, names properly and fills with gzip-compressed data
-                file_count = 1
+                file_count = 0
                 for p2g_tag in p2g_file_tags:
                     for filepath in glob.glob(
                             processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc'):
@@ -230,19 +251,18 @@ def main(raw_args=None):
                                         filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
                                         filename_pieces[6][1:] + '.nc.gz')
 
-                        #--- counting files created
-                        file_count += 1
-
                         if not missing_p2g_tags:
                             with open(filepath, 'rb') as f_in, gzip.open(final_dir + new_filename, 'wb') as f_out:
                                 f_out.writelines(f_in)
-                            #shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
-                            os.remove(filepath) #--- remove files from processing directory
+                            file_count += 1 #--- counting files created
+
+                        #shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
+                        os.remove(filepath) #--- remove files from processing directory
 
                 #--- logging files created for date
-                pattern = os.path.join(final_dir, f'*{file_year}{file_month}{file_day}*')
+                pattern = os.path.join(final_dir, f'*{file_year}{file_month}{file_day}*.nc.gz')
                 file_count_total = len(glob.glob(pattern))
-                logging.info(f'Created {file_count} new files. Total for {file_year}-{file_month}-{file_day} is now {file_count_total}.')
+                logging.info(f'Created {file_count} AWIPS files. Total for {file_year}-{file_month}-{file_day} is now {file_count_total}.')
 
                 # Move the viirs2scmi logfile(s) (fairly certain they'll only ever be one, but to be safe...)
                 for filepath in glob.glob(processing_dir + 'viirs*.log'):
@@ -263,7 +283,7 @@ def main(raw_args=None):
     if not os.listdir(dtstamp_dir):
         shutil.rmtree(dtstamp_dir)
 
-    logging.info(log_prefix + 'Finished at ' + time.ctime())
+    logging.info(log_prefix + 'Finished at ' + datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
 
 if __name__ == '__main__':
