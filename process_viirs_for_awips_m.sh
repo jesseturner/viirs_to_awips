@@ -22,4 +22,4 @@
     -p m08 m10 m11 m12 m13 m14 m15 m16 \
     --grid-configs grids.conf ~/VIIRS_to_AWIPS/niznik_grids.conf \
     --tiles 5 7 \
-#    --filter-day-products 0
+    --filter-day-products 0
