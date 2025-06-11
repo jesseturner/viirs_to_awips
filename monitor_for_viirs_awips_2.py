@@ -219,7 +219,7 @@ def nameAndFillFiles(p2g_file_tags, processing_dir, raw_sat_name, output_prod_na
                             filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
                             filename_pieces[6][1:] + '.nc.gz')
 
-            if not missing_p2g_tags:
+            if p2g_tag not in missing_p2g_tags:
                 with open(filepath, 'rb') as f_in, gzip.open(final_dir + new_filename, 'wb') as f_out:
                     f_out.writelines(f_in)
                 file_count += 1 #--- counting files created
@@ -227,7 +227,7 @@ def nameAndFillFiles(p2g_file_tags, processing_dir, raw_sat_name, output_prod_na
             #shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
             os.remove(filepath) #--- remove files from processing directory
         
-        return file_count
+    return file_count
     
 #-----------------------------------------------------
 
