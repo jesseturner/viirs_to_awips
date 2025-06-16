@@ -9,11 +9,11 @@ import argparse, glob, gzip, logging, os, shutil, subprocess, re
 def main(raw_args=None):
     
     base_dir, recent_file_threshold, bands_to_process, sats_to_process = setUpVariables()
-    file_year, file_month, file_day, file_date, current_datetime, current_datetime_colons = setUpDatetimes()
-    log_prefix = startLogging(base_dir, file_date, current_datetime_colons)
-    file_year, file_month, file_day, julian_day, args = parseArguments(raw_args, recent_file_threshold, log_prefix)
-    dtstamp_dir, final_dir = createTempAndOutputDir(base_dir, current_datetime)
-    processingAllViirsData(file_year, file_month, file_day, julian_day, sats_to_process, bands_to_process, args, dtstamp_dir, log_prefix, base_dir, final_dir)
+    dt_info = setUpDatetimes()
+    log_prefix = startLogging(base_dir, dt_info)
+    dt_info, args = parseArguments(raw_args, recent_file_threshold, log_prefix, dt_info)
+    dtstamp_dir, final_dir = createTempAndOutputDir(base_dir, dt_info)
+    processingAllViirsData(dt_info, sats_to_process, bands_to_process, args, dtstamp_dir, log_prefix, base_dir, final_dir)
     finishAndClean(dtstamp_dir, log_prefix)
 
 #=====================================================
@@ -33,31 +33,34 @@ def setUpDatetimes():
     month = current_dt.month
     day = current_dt.day
 
-    #--- putting current datetime into str format
-    file_year = str(year)
-    file_month = '%02d' % month
-    file_day = '%02d' % day
-    file_date = file_year + file_month + file_day 
-    current_datetime = current_dt.strftime('%Y%m%d%H%M%S')
-    current_datetime_colons = current_dt.strftime('%Y-%m-%d %H:%M:%S')
-    
-    return file_year, file_month, file_day, file_date, current_datetime, current_datetime_colons
+    #--- creating a dictionary for ease of passing variables
+    dt_info = {
+    "file_year": str(year),
+    "file_month": '%02d' % month,
+    "file_day": '%02d' % day,
+    "file_date": str(year) + '%02d' % month + '%02d' % day ,
+    "current_datetime": current_dt.strftime('%Y%m%d%H%M%S'),
+    "current_datetime_colons": current_dt.strftime('%Y-%m-%d %H:%M:%S'),
+    "julian_day": current_dt.timetuple().tm_yday
+    }
+
+    return dt_info
 
 #-----------------------------------------------------
 
-def startLogging(base_dir, file_date, current_datetime_colons): 
+def startLogging(base_dir, dt_info): 
 
     logging_dir = base_dir + 'logs/'
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
-    logging.basicConfig(filename=logging_dir + file_date + '.log', level=logging.INFO)
-    log_prefix = f'{current_datetime_colons} Z - '
+    logging.basicConfig(filename=logging_dir + dt_info['file_date'] + '.log', level=logging.INFO)
+    log_prefix = f'{dt_info['current_datetime_colons']} Z - '
 
     return log_prefix
 
 #-----------------------------------------------------
 
-def parseArguments(raw_args, recent_file_threshold, log_prefix):
+def parseArguments(raw_args, recent_file_threshold, log_prefix, dt_info):
     #--- checking for incoming arguments that would change processing
     #------ arguments are in the form of a list of strings, i.e. ['-d', '20250611']
     parser = argparse.ArgumentParser(description='Process incoming data from /mnt/viirs/WI-CONUS/NPP for AWIPS ingestion')
@@ -85,39 +88,39 @@ def parseArguments(raw_args, recent_file_threshold, log_prefix):
             logging.error('Invalid satellite input; valid options are "NPP", "J01", and "J02"')
             exit(1)
         sats_to_process = [args.satellite]
-    if args.file_date:
-        file_year = str(args.file_date[0:3 + 1])
-        file_month = str(args.file_date[4:5 + 1])
-        file_day = str(args.file_date[6:7 + 1])
-    
-    julian_day = datetime(int(file_year), int(file_month), int(file_day)).timetuple().tm_yday
 
-    checkForDateArgument(args, log_prefix, recent_file_threshold, file_year, file_month, file_day)
+    dt_info = checkForDateArgument(args, log_prefix, recent_file_threshold, dt_info)
     
-    return file_year, file_month, file_day, julian_day, args
+    return dt_info, args
 
 #-----------------------------------------------------
 
-def checkForDateArgument(args, log_prefix, recent_file_threshold, file_year, file_month, file_day):
+def checkForDateArgument(args, log_prefix, recent_file_threshold, dt_info):
     
-    #--- if running for current date for past date
+    if args.file_date:
+        dt_info['file_year'] = str(args.file_date[0:3 + 1])
+        dt_info['file_month'] = str(args.file_date[4:5 + 1])
+        dt_info['file_day'] = str(args.file_date[6:7 + 1])
+    
+    dt_info['julian_day'] = datetime(int(dt_info['file_year']), int(dt_info['file_month']), int(dt_info['file_day'])).timetuple().tm_yday
+
     if args.file_date:
         if len(args.file_date) == 10:
-            logging.info(f'{log_prefix} Looking for data from {file_year}-{file_month}-{file_day} {args.file_date[-2:]}:00 UTC')
+            logging.info(f'{log_prefix} Looking for data from {dt_info['file_year']}-{dt_info['file_month']}-{dt_info['file_day']} {args.file_date[-2:]}:00 UTC')
         elif len(args.file_date) == 8:
-            logging.info(f'{log_prefix} Looking for all data from {file_year}-{file_month}-{file_day}')
+            logging.info(f'{log_prefix} Looking for all data from {dt_info['file_year']}-{dt_info['file_month']}-{dt_info['file_day']}')
         else:
             raise ValueError("file_date must be in YYYYMMDD or YYYYMMDDhh format")
     else: 
         logging.info(f'{log_prefix} Checking last {recent_file_threshold/60} minutes for new files')
 
-    return
+    return dt_info
 
 #-----------------------------------------------------
 
-def createTempAndOutputDir(base_dir, current_datetime):
+def createTempAndOutputDir(base_dir, dt_info):
     #--- creating a YYYYMMDD_hhmmss dir for an isolated workspace
-    dtstamp_dir = base_dir + current_datetime + '/'
+    dtstamp_dir = base_dir + dt_info['current_datetime'] + '/'
     if not os.path.exists(dtstamp_dir):
         os.makedirs(dtstamp_dir)
 
@@ -130,8 +133,8 @@ def createTempAndOutputDir(base_dir, current_datetime):
 
 #-----------------------------------------------------
 
-def processingAllViirsData(file_year, file_month, file_day, julian_day, sats_to_process, bands_to_process, args, dtstamp_dir, log_prefix, base_dir, final_dir):
-    band_params, raw_sat_names = setSatellitesAndBands(file_year, julian_day)
+def processingAllViirsData(dt_info, sats_to_process, bands_to_process, args, dtstamp_dir, log_prefix, base_dir, final_dir):
+    band_params, raw_sat_names = setSatellitesAndBands(dt_info['file_year'], dt_info['julian_day'])
     for sat in sats_to_process:    #--- NPP, J01, J02
         raw_sat_name = raw_sat_names[sat]
         for band in bands_to_process:   #--- m, i
@@ -151,9 +154,9 @@ def processingAllViirsData(file_year, file_month, file_day, julian_day, sats_to_
                 file_count = nameAndFillFiles(p2g_file_tags, processing_dir, raw_sat_name, output_prod_name, ldm_file_tags, missing_p2g_tags, final_dir)
 
                 #--- logging files created for date
-                pattern = os.path.join(final_dir, f'*{file_year}{file_month}{file_day}*.nc.gz')
+                pattern = os.path.join(final_dir, f'*{dt_info['file_year']}{dt_info['file_month']}{dt_info['file_day']}*.nc.gz')
                 file_count_total = len(glob.glob(pattern))
-                logging.info(f'Created {file_count} AWIPS files. Total for {file_year}-{file_month}-{file_day} is now {file_count_total}.')
+                logging.info(f'Created {file_count} AWIPS files. Total for {dt_info['file_year']}-{dt_info['file_month']}-{dt_info['file_day']} is now {file_count_total}.')
 
                 removeTempFiles(raw_files_dir, processing_dir)
 
@@ -340,7 +343,7 @@ def removeTempFiles(raw_files_dir, processing_dir):
     if (num_all_files - num_h5_files) == 0:
         shutil.rmtree(raw_files_dir)
 
-    if not os.listdir(processing_dir):
+    if len(glob.glob(processing_dir)) == 1: #--- only log file is left
         shutil.rmtree(processing_dir)
 
     return
