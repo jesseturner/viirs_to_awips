@@ -11,7 +11,7 @@ def main(raw_args=None):
     base_dir, recent_file_threshold, bands_to_process, sats_to_process = setUpVariables()
     dt_info = setUpDatetimes()
     log_prefix = startLogging(base_dir, dt_info)
-    dt_info, args = parseArguments(raw_args, recent_file_threshold, log_prefix, dt_info)
+    bands_to_process, dt_info, args = parseArguments(raw_args, recent_file_threshold, bands_to_process, log_prefix, dt_info)
     dtstamp_dir, final_dir = createTempAndOutputDir(base_dir, dt_info)
     processingAllViirsData(dt_info, sats_to_process, bands_to_process, args, dtstamp_dir, log_prefix, base_dir, final_dir)
     finishAndClean(dtstamp_dir, log_prefix)
@@ -60,7 +60,7 @@ def startLogging(base_dir, dt_info):
 
 #-----------------------------------------------------
 
-def parseArguments(raw_args, recent_file_threshold, log_prefix, dt_info):
+def parseArguments(raw_args, recent_file_threshold, bands_to_process, log_prefix, dt_info):
     #--- checking for incoming arguments that would change processing
     #------ arguments are in the form of a list of strings, i.e. ['-d', '20250611']
     parser = argparse.ArgumentParser(description='Process incoming data from /mnt/viirs/WI-CONUS/NPP for AWIPS ingestion')
@@ -91,7 +91,7 @@ def parseArguments(raw_args, recent_file_threshold, log_prefix, dt_info):
 
     dt_info = checkForDateArgument(args, log_prefix, recent_file_threshold, dt_info)
     
-    return dt_info, args
+    return bands_to_process, dt_info, args
 
 #-----------------------------------------------------
 
@@ -228,6 +228,8 @@ def setSatellitesAndBands(file_year, julian_day):
     raw_sat_names = {'NPP': 'npp', 'J01': 'noaa20' , 'J02': 'noaa21'}
 
     return band_params, raw_sat_names
+
+#-----------------------------------------------------
 
 def gettingFilesFromOrbit(prod_prefixes, sat, band_dir, band, orbit):
 
