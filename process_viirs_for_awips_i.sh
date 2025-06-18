@@ -11,4 +11,3 @@
     --grid-configs grids.conf ~/VIIRS_to_AWIPS/niznik_grids.conf \
     --tiles 10 14 \
     --filter-day-products 0 \
-    
