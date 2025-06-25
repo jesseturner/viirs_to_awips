@@ -15,7 +15,7 @@ def main(raw_args=None):
 
     cutoff_epoch = time.mktime(cutoff_dt.timetuple())
 
-    target_dir = '/home/jturner/VIIRS_to_AWIPS/to_ldm_recent'
+    target_dir = os.getcwd()+'/to_ldm_recent'
     for filename in os.listdir(target_dir):
         if not filename.endswith('.nc.gz'):
             continue

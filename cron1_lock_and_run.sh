@@ -20,13 +20,11 @@ else
    /bin/touch $lock
 fi
 
-echo "running cron1"
-
 mkdir -p "$working_dir/processing_logs"
 
-/usr/bin/env python3 $working_dir/process_viirs_to_awips.py
-#/bin/bash $working_dir/move_files_to_ldm.sh
-#/bin/mv $working_dir/to_ldm/*.nc.gz $working_dir/to_ldm_recent/. 2> /dev/null
+/usr/bin/env python3 $working_dir/cron1.1_process_viirs_to_awips.py
+/bin/bash $working_dir/cron1.1_move_files_to_ldm.sh
+/bin/mv $working_dir/to_ldm/*.nc.gz $working_dir/to_ldm_recent/. 2> /dev/null
 
 /bin/rm -rf $lock
 

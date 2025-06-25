@@ -32,7 +32,7 @@ def main(raw_args=None):
             if (datetime.now() - last_pass_dt) > timedelta(hours=email_threshold_hours):
                 subprocess.Popen(['bash', 'send_files_outdated_email.sh', suffix, str(last_pass_dt),
                                   str(datetime.now().replace(microsecond=0))],
-                                 cwd='/home/jturner/VIIRS_to_AWIPS')
+                                 cwd='/mnt/data1/jturner')
 
 
 if __name__ == "__main__":
