@@ -30,7 +30,7 @@ def main(raw_args=None):
             last_pass_dt = datetime(last_time_split[0], last_time_split[1], last_time_split[2], last_time_split[3],
                                     last_time_split[4])
             if (datetime.now() - last_pass_dt) > timedelta(hours=email_threshold_hours):
-                subprocess.Popen(['bash', 'send_files_outdated_email.sh', suffix, str(last_pass_dt),
+                subprocess.Popen(['bash', 'cron3-1_send_files_outdated_email.sh', suffix, str(last_pass_dt),
                                   str(datetime.now().replace(microsecond=0))],
                                  cwd='/mnt/data1/jturner')
 
