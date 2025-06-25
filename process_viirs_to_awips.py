@@ -19,7 +19,7 @@ def main(raw_args=None):
 #=====================================================
 
 def setUpVariables():
-    base_dir = '/home/jturner/VIIRS_to_AWIPS/'
+    base_dir = os.getcwd()
     recent_file_threshold = 30 * 60 #--- time range to process, files from most recent minutes
     bands_to_process = ['m', 'i']
     sats_to_process = ['NPP', 'J01', 'J02']
@@ -50,7 +50,7 @@ def setUpDatetimes():
 
 def startLogging(base_dir, dt_info): 
 
-    logging_dir = base_dir + 'logs/'
+    logging_dir = base_dir + '/logs/'
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
     logging.basicConfig(filename=logging_dir + dt_info['file_date'] + '.log', level=logging.INFO)
@@ -120,12 +120,12 @@ def checkForDateArgument(args, log_prefix, recent_file_threshold, dt_info):
 
 def createTempAndOutputDir(base_dir, dt_info):
     #--- creating a YYYYMMDD_hhmmss dir for an isolated workspace
-    dtstamp_dir = base_dir + dt_info['current_datetime'] + '/'
+    dtstamp_dir = base_dir + '/' + dt_info['current_datetime'] + '/'
     if not os.path.exists(dtstamp_dir):
         os.makedirs(dtstamp_dir)
 
     #--- creating the output directories
-    final_dir = base_dir + 'viirs_awips/'
+    final_dir = base_dir + '/viirs_awips/'
     if not os.path.exists(final_dir):
         os.makedirs(final_dir)
     
@@ -285,7 +285,7 @@ def runningPolar2Grid(log_prefix, sat, band, base_dir, raw_files_dir, orbit, pro
     #------ this is the very core of the processing
     print(log_prefix + 'Running p2g for ' + sat + ' ' + band + ' band ')
     p2g_status = subprocess.call(
-        ['bash', base_dir + 'process_viirs_for_awips_' + band + '.sh', raw_files_dir], cwd=processing_dir)
+        ['bash', base_dir + '/call_p2g_' + band + '.sh', raw_files_dir], cwd=processing_dir)
     print(log_prefix + 'Finished running p2g for ' + sat + ' (orbit ' + orbit + ') ' + band + ' band with exit status ' + str(
         p2g_status))
     
