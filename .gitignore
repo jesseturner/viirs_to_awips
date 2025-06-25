@@ -8,3 +8,4 @@
 __pycache__
 /view_example/viirs_to_awips_env
 /to_ldm
+lock-viirs-to-awips
