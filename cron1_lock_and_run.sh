@@ -17,7 +17,7 @@ lock="$working_dir/lock-viirs-to-awips"
 if [ -e "$lock" ]; then
     echo "Lock file exists - checking age: $lock"
     
-    if /bin/find "$lock" -mmin +20 | grep -q .; then
+    if /bin/find "$lock" -mmin +60 | grep -q .; then
         echo "Lock file is stale. Removing: $lock"
         /bin/rm -f "$lock"
     else

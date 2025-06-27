@@ -96,7 +96,7 @@ def parseArguments(raw_args, recent_file_threshold, bands_to_process, log_prefix
 #-----------------------------------------------------
 
 def checkForDateArgument(args, log_prefix, recent_file_threshold, dt_info):
-    
+
     if args.file_date:
         dt_info['file_year'] = str(args.file_date[0:3 + 1])
         dt_info['file_month'] = str(args.file_date[4:5 + 1])
