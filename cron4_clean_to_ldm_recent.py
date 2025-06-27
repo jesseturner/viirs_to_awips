@@ -15,7 +15,7 @@ def main(raw_args=None):
 
     cutoff_epoch = time.mktime(cutoff_dt.timetuple())
 
-    target_dir = os.getcwd()+'/to_ldm_recent'
+    target_dir = '/mnt/data1/jturner/to_ldm_recent'
     for filename in os.listdir(target_dir):
         if not filename.endswith('.nc.gz'):
             continue
@@ -24,6 +24,8 @@ def main(raw_args=None):
             file_mtime = os.path.getmtime(filepath)
             if file_mtime < cutoff_epoch:
                 os.remove(filepath)
+
+    print(f"=== Run at {datetime.now().isoformat()} ===")
 
 if __name__ == "__main__":
     main()

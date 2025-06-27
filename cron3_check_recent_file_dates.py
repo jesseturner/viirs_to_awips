@@ -33,6 +33,8 @@ def main(raw_args=None):
                 subprocess.Popen(['bash', 'cron3-1_send_files_outdated_email.sh', suffix, str(last_pass_dt),
                                   str(datetime.now().replace(microsecond=0))],
                                  cwd='/mnt/data1/jturner')
+                
+    print(f"=== Run at {datetime.now().isoformat()} ===")
 
 
 if __name__ == "__main__":
