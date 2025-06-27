@@ -5,8 +5,8 @@
 
 working_dir=/mnt/data1/jturner
 
-/usr/bin/rsync -a $working_dir/*VIIRS_M*.nc.gz ldm@cira-ldm1:viirs_m_incoming 2> /dev/null
-/usr/bin/rsync -a $working_dir/*VIIRS_I*.nc.gz ldm@cira-ldm1:viirs_i_incoming 2> /dev/null
+/usr/bin/rsync -a $working_dir/viirs_awips/*VIIRS_M*.nc.gz ldm@cira-ldm1:viirs_m_incoming 2> /dev/null
+/usr/bin/rsync -a $working_dir/viirs_awips/*VIIRS_I*.nc.gz ldm@cira-ldm1:viirs_i_incoming 2> /dev/null
 
 /usr/bin/ssh ldm@cira-ldm1 "bash add_viirs_to_ldm.sh -b M"
 /usr/bin/ssh ldm@cira-ldm1 "bash add_viirs_to_ldm.sh -b I"

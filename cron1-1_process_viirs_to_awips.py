@@ -54,7 +54,7 @@ def startLogging(base_dir, dt_info):
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
     logging.basicConfig(filename=logging_dir + dt_info['file_date'] + '.log', level=logging.INFO)
-    log_prefix = f'{dt_info['current_datetime_colons']} Z - '
+    log_prefix = f'{dt_info["current_datetime_colons"]} Z - '
 
     return log_prefix
 
@@ -106,9 +106,9 @@ def checkForDateArgument(args, log_prefix, recent_file_threshold, dt_info):
 
     if args.file_date:
         if len(args.file_date) == 10:
-            logging.info(f'{log_prefix} Looking for data from {dt_info['file_year']}-{dt_info['file_month']}-{dt_info['file_day']} {args.file_date[-2:]}:00 UTC')
+            logging.info(f'{log_prefix} Looking for data from {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]} {args.file_date[-2:]}:00 UTC')
         elif len(args.file_date) == 8:
-            logging.info(f'{log_prefix} Looking for all data from {dt_info['file_year']}-{dt_info['file_month']}-{dt_info['file_day']}')
+            logging.info(f'{log_prefix} Looking for all data from {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]}')
         else:
             raise ValueError("file_date must be in YYYYMMDD or YYYYMMDDhh format")
     else: 
@@ -154,9 +154,9 @@ def processingAllViirsData(dt_info, sats_to_process, bands_to_process, args, dts
                 file_count = nameAndFillFiles(p2g_file_tags, processing_dir, raw_sat_name, output_prod_name, ldm_file_tags, missing_p2g_tags, final_dir)
 
                 #--- logging files created for date
-                pattern = os.path.join(final_dir, f'*{dt_info['file_year']}{dt_info['file_month']}{dt_info['file_day']}*.nc.gz')
+                pattern = os.path.join(final_dir, f'*{dt_info["file_year"]}{dt_info["file_month"]}{dt_info["file_day"]}*.nc.gz')
                 file_count_total = len(glob.glob(pattern))
-                logging.info(f'Created {file_count} AWIPS files. Total for {dt_info['file_year']}-{dt_info['file_month']}-{dt_info['file_day']} is now {file_count_total}.')
+                logging.info(f'Created {file_count} AWIPS files. Total for {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]} is now {file_count_total}.')
 
                 removeTempFiles(raw_files_dir, processing_dir)
 
