@@ -35,7 +35,7 @@ def startLogging(base_dir, current_dt):
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
     logging.basicConfig(filename=logging_dir + current_dt.strftime('%Y%m%d') + '.log', level=logging.INFO)
-    log_prefix = f'{current_dt.strftime('%Y-%m-%d %H:%M:%S')} Z - '
+    log_prefix = f"{current_dt.strftime('%Y-%m-%d %H:%M:%S')} Z - "
 
     return log_prefix
 
@@ -60,12 +60,12 @@ def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, file
 
     #--- No arguments
     if len(sys.argv) == 1:
-        logging.info(f'{log_prefix} Looking for data from {file_dt.strftime('%Y-%m-%d %H')}:00 UTC')
+        logging.info(f"{log_prefix} Looking for data from {file_dt.strftime('%Y-%m-%d %H')}:00 UTC")
 
     #--- Specified orbit
     if args.orbit:
         orbits_to_process = [args.orbit if args.orbit[0] == 'b' else ('b' + args.orbit)]
-        logging.info(f'{log_prefix} Running for orbit {orbits_to_process}')
+        logging.info(f"{log_prefix} Running for orbit {orbits_to_process}")
 
     #--- Specified band
     if args.freq_band:
@@ -86,10 +86,10 @@ def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, file
         #--- Depending on if hour is specified or not
         if len(args.file_date) == 10:  #--- format: YYYYMMDDhh
             file_dt = datetime.strptime(args.file_date, "%Y%m%d%H")
-            logging.info(f'{log_prefix} Looking for data from {file_dt.strftime('%Y-%m-%d %H')}:00 UTC')
+            logging.info(f"{log_prefix} Looking for data from {file_dt.strftime('%Y-%m-%d %H')}:00 UTC")
         elif len(args.file_date) == 8:  #--- format: YYYYMMDD
             file_dt = datetime.strptime(args.file_date, "%Y%m%d")
-            logging.info(f'{log_prefix} Looking for all data from {file_dt.strftime('%Y-%m-%d')}')
+            logging.info(f"{log_prefix} Looking for all data from {file_dt.strftime('%Y-%m-%d')}")
         else:
             raise ValueError("file_date must be in YYYYMMDD or YYYYMMDDhh format")
         
@@ -135,9 +135,9 @@ def processingAllViirsData(bands_to_process, sats_to_process, orbits_to_process,
                 file_count = nameAndFillFiles(p2g_file_tags, processing_dir, raw_sat_name, output_prod_name, ldm_file_tags, missing_p2g_tags, final_dir)
 
                 #--- logging files created for date
-                pattern = os.path.join(final_dir, f'*{file_dt.strftime('%Y%m%d')}*.nc.gz')
+                pattern = os.path.join(final_dir, f"*{file_dt.strftime('%Y%m%d')}*.nc.gz")
                 file_count_total = len(glob.glob(pattern))
-                logging.info(f'Created {file_count} AWIPS files. Total for {file_dt.strftime('%Y-%m-%d')} is now {file_count_total}.')
+                logging.info(f"Created {file_count} AWIPS files. Total for {file_dt.strftime('%Y-%m-%d')} is now {file_count_total}.")
 
                 removeTempFiles(raw_files_dir, processing_dir)
 
@@ -167,13 +167,13 @@ def setSatellitesAndBands(file_dt):
     #--- set up dictionaries for each band
     band_params = {
         'm': {
-            'band_dir': f'/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/{file_dt.year}/{file_dt.timetuple().tm_yday}/',
+            'band_dir': f"/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/{file_dt.year}/{file_dt.timetuple().tm_yday}/",
             'prod_prefixes': ['GMTCO'] + ['SV' + tag for tag in list(m_ldm_file_tags.values())],
             'ldm_file_tags': m_ldm_file_tags,
             'output_prod_name': 'VIIRS'
         },
         'i': {
-            'band_dir': f'/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-IBand/{file_dt.year}/{file_dt.timetuple().tm_yday}/',
+            'band_dir': f"/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-IBand/{file_dt.year}/{file_dt.timetuple().tm_yday}/",
             'prod_prefixes': ['GITCO'] + ['SV' + tag for tag in list(i_ldm_file_tags.values())],
             'ldm_file_tags': i_ldm_file_tags,
             'output_prod_name': 'VIIRS'
@@ -201,7 +201,7 @@ def gettingFilesFromOrbit(prod_prefixes, sat, band_dir, band, orbit):
             orbit_not_ready = True
             break
         if orbit_not_ready:
-            logging.info(f'{sat} orbit {orbit} bands are not fully filled in yet, not processing')
+            logging.info(f"{sat} orbit {orbit} bands are not fully filled in yet, not processing")
             continue
         
         #--- logging the files used
@@ -218,7 +218,7 @@ def gettingFilesFromOrbit(prod_prefixes, sat, band_dir, band, orbit):
                 datetime_str = dt.strftime("%Y-%m-%d %H:%M UTC")
             else:
                 datetime_str = "Unknown datetime"
-            logging.info(f'Processing {len(filepaths)} VIIRS files for {sat} orbit {orbit} {band}-band at {datetime_str}')
+            logging.info(f"Processing {len(filepaths)} VIIRS files for {sat} orbit {orbit} {band}-band at {datetime_str}")
         
         return datetime_str
     
@@ -258,11 +258,11 @@ def checkForMissingData(p2g_file_tags, processing_dir, raw_sat_name, sat, orbit,
             missing_p2g_tags.append(p2g_tag)
     #--- all files are missing tags, likely due to <10% grid coverage
     if len(missing_p2g_tags) == len(p2g_file_tags):
-        logging.info(f'P2G returned no files for {sat} orbit {orbit} {band}-band at {file_dt.strftime("%Y-%m-%d %H:%M UTC")}')
+        logging.info(f"P2G returned no files for {sat} orbit {orbit} {band}-band at {file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
 
     #--- some files are missing tags, likely due to lack of sun
     elif len(missing_p2g_tags) > 0:
-        logging.info(f'P2G rejected {missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {file_dt.strftime("%Y-%m-%d %H:%M UTC")}')
+        logging.info(f"P2G rejected {missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
     
     return missing_p2g_tags
 
