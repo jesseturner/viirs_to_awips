@@ -77,6 +77,8 @@ def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, dt_i
     
     args = parser.parse_args(raw_args)
 
+    orbits_to_process = [] #--- initialize orbits list
+
     #--- No arguments
     if len(sys.argv) == 1:
         logging.info(f'{log_prefix} Looking for data from {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]} {dt_info["file_hour"]}:00 UTC')
@@ -85,7 +87,6 @@ def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, dt_i
     if args.orbit:
         orbits_to_process = [args.orbit if args.orbit[0] == 'b' else ('b' + args.orbit)]
         logging.info(f'{log_prefix} Running for orbit {orbits_to_process}')
-    else: orbits_to_process = []
 
     #--- Specified band
     if args.freq_band:
@@ -110,9 +111,9 @@ def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, dt_i
 
         #--- Depending on if hour is specified or not
         if len(args.file_date) == 10:  #--- format: YYYYMMDDhh
-            dt_info['file_hour'] = args.file_date[8:10]
+            dt_info['file_hour'] = args.file_date[-2:]
             dt_info['file_date_str'] = f"d{dt_info['file_year']}{dt_info['file_month']}{dt_info['file_day']}_t{dt_info['file_hour']}"
-            logging.info(f'{log_prefix} Looking for data from {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]} {args.file_date[-2:]}:00 UTC')
+            logging.info(f'{log_prefix} Looking for data from {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]} {dt_info["file_hour"]}:00 UTC')
         elif len(args.file_date) == 8:  #--- format: YYYYMMDD
             dt_info['file_date_str'] = f"d{dt_info['file_year']}{dt_info['file_month']}{dt_info['file_day']}"
             logging.info(f'{log_prefix} Looking for all data from {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]}')
@@ -142,6 +143,8 @@ def processingAllViirsData(bands_to_process, sats_to_process, orbits_to_process,
                 os.path.basename(f) for f in glob.glob(os.path.join(band_dir, f"*{dt_info['file_date_str']}*"))
                 if dt_info['file_date_str'] in f
             ]
+            if not matching_files:
+                continue
 
             #--- create orbits list from matching files
             for filename in matching_files:  
@@ -228,9 +231,10 @@ def gettingFilesFromOrbit(prod_prefixes, sat, band_dir, band, orbit):
             continue
         
         #--- logging the files used
-        #--- TO FIX: this is being run even when filepaths is empty 
         filepaths = glob.glob(os.path.join(band_dir, prefix + '*_' + orbit + '_*'))
-        if filepaths: 
+        if not filepaths:
+            continue
+        else: 
             filepaths.sort()  #--- sort to follow time order
             first_file = os.path.basename(filepaths[0])
             match = re.search(r'd(\d{8})_t(\d{2})(\d{2})', first_file)
@@ -241,11 +245,6 @@ def gettingFilesFromOrbit(prod_prefixes, sat, band_dir, band, orbit):
             else:
                 datetime_str = "Unknown datetime"
             logging.info(f'Processing {len(filepaths)} VIIRS files for {sat} orbit {orbit} {band}-band at {datetime_str}')
-        
-        else: 
-            datetime_str = "Unknown datetime"
-            logging.info(f'No VIIRS files found for {sat} orbit {orbit} {band}-band at {datetime_str}')
-            continue
         
         return datetime_str
     
