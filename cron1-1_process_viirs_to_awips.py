@@ -8,61 +8,40 @@ import argparse, glob, gzip, logging, os, shutil, subprocess, re, sys
 
 def main(raw_args=None):
     
-    base_dir, bands_to_process, sats_to_process = setUpVariables()
-    dt_info = setUpDatetimes()
-    log_prefix = startLogging(base_dir, dt_info)
-    bands_to_process, sats_to_process, orbits_to_process, dt_info = parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, dt_info)
-    dtstamp_dir, final_dir = createTempAndOutputDir(base_dir, dt_info)
-    processingAllViirsData(bands_to_process, sats_to_process, orbits_to_process, dt_info, dtstamp_dir, log_prefix, base_dir, final_dir)
+    base_dir, bands_to_process, sats_to_process, current_dt, file_dt = setUpVariables()
+    log_prefix = startLogging(base_dir, current_dt)
+    bands_to_process, sats_to_process, orbits_to_process, file_dt = parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, file_dt)
+    dtstamp_dir, final_dir = createTempAndOutputDir(base_dir, current_dt)
+    processingAllViirsData(bands_to_process, sats_to_process, orbits_to_process, file_dt, dtstamp_dir, log_prefix, base_dir, final_dir)
     finishAndClean(dtstamp_dir, log_prefix)
 
 #=====================================================
 
 def setUpVariables():
+
     base_dir = os.getcwd()
     bands_to_process = ['m', 'i']
     sats_to_process = ['NPP', 'J01', 'J02']
-    return base_dir, bands_to_process, sats_to_process
+    current_dt = datetime.now() #datetime(2025, 7, 1, 10, 33, 33)
+    file_dt = datetime.now() #datetime(2025, 7, 1, 10, 33, 33)
+
+    return base_dir, bands_to_process, sats_to_process, current_dt, file_dt
 
 #-----------------------------------------------------
 
-def setUpDatetimes():
-    current_dt = datetime.now()
-    year = current_dt.year
-    month = current_dt.month
-    day = current_dt.day
-    hour = current_dt.hour
-
-    #--- creating a dictionary for ease of passing variables
-    dt_info = {
-        "file_year": str(year),
-        "file_month": f"{month:02d}",
-        "file_day": f"{day:02d}",
-        "file_date": f"{year}{month:02d}{day:02d}",
-        "file_hour": f"{hour:02d}",
-        "current_datetime": current_dt.strftime('%Y%m%d%H%M%S'),
-        "current_datetime_colons": current_dt.strftime('%Y-%m-%d %H:%M:%S'),
-        "julian_day": current_dt.timetuple().tm_yday,
-        "file_date_str": f"d{year}{month:02d}{day:02d}_t{hour:02d}"
-    }
-
-    return dt_info
-
-#-----------------------------------------------------
-
-def startLogging(base_dir, dt_info): 
+def startLogging(base_dir, current_dt): 
 
     logging_dir = base_dir + '/logs/'
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
-    logging.basicConfig(filename=logging_dir + dt_info['file_date'] + '.log', level=logging.INFO)
-    log_prefix = f'{dt_info["current_datetime_colons"]} Z - '
+    logging.basicConfig(filename=logging_dir + current_dt.strftime('%Y%m%d') + '.log', level=logging.INFO)
+    log_prefix = f'{current_dt.strftime('%Y-%m-%d %H:%M:%S')} Z - '
 
     return log_prefix
 
 #-----------------------------------------------------
 
-def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, dt_info):
+def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, file_dt):
 
     #--- arguments are in the form of a list of strings, i.e. ['-d', '20250611']
     parser = argparse.ArgumentParser(description='Process incoming data from /mnt/viirs/WI-CONUS/NPP for AWIPS ingestion')
@@ -81,7 +60,7 @@ def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, dt_i
 
     #--- No arguments
     if len(sys.argv) == 1:
-        logging.info(f'{log_prefix} Looking for data from {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]} {dt_info["file_hour"]}:00 UTC')
+        logging.info(f'{log_prefix} Looking for data from {file_dt.strftime('%Y-%m-%d %H')}:00 UTC')
 
     #--- Specified orbit
     if args.orbit:
@@ -104,29 +83,23 @@ def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, dt_i
 
     #--- Specified date
     if args.file_date:
-        dt_info['file_year'] = args.file_date[:4]
-        dt_info['file_month'] = args.file_date[4:6]
-        dt_info['file_day'] = args.file_date[6:8]
-        dt_info['julian_day'] = datetime(int(dt_info['file_year']), int(dt_info['file_month']), int(dt_info['file_day'])).timetuple().tm_yday
-
         #--- Depending on if hour is specified or not
         if len(args.file_date) == 10:  #--- format: YYYYMMDDhh
-            dt_info['file_hour'] = args.file_date[-2:]
-            dt_info['file_date_str'] = f"d{dt_info['file_year']}{dt_info['file_month']}{dt_info['file_day']}_t{dt_info['file_hour']}"
-            logging.info(f'{log_prefix} Looking for data from {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]} {dt_info["file_hour"]}:00 UTC')
+            file_dt = datetime.strptime(args.file_date, "%Y%m%d%H")
+            logging.info(f'{log_prefix} Looking for data from {file_dt.strftime('%Y-%m-%d %H')}:00 UTC')
         elif len(args.file_date) == 8:  #--- format: YYYYMMDD
-            dt_info['file_date_str'] = f"d{dt_info['file_year']}{dt_info['file_month']}{dt_info['file_day']}"
-            logging.info(f'{log_prefix} Looking for all data from {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]}')
+            file_dt = datetime.strptime(args.file_date, "%Y%m%d")
+            logging.info(f'{log_prefix} Looking for all data from {file_dt.strftime('%Y-%m-%d')}')
         else:
             raise ValueError("file_date must be in YYYYMMDD or YYYYMMDDhh format")
         
     
-    return bands_to_process, sats_to_process, orbits_to_process, dt_info
+    return bands_to_process, sats_to_process, orbits_to_process, file_dt
 
 #-----------------------------------------------------
 
-def processingAllViirsData(bands_to_process, sats_to_process, orbits_to_process, dt_info, dtstamp_dir, log_prefix, base_dir, final_dir):
-    band_params, raw_sat_names = setSatellitesAndBands(dt_info['file_year'], dt_info['julian_day'])
+def processingAllViirsData(bands_to_process, sats_to_process, orbits_to_process, file_dt, dtstamp_dir, log_prefix, base_dir, final_dir):
+    band_params, raw_sat_names = setSatellitesAndBands(file_dt)
     for sat in sats_to_process:    #--- NPP, J01, J02
         raw_sat_name = raw_sat_names[sat]
         for band in bands_to_process:   #--- m, i
@@ -139,9 +112,10 @@ def processingAllViirsData(bands_to_process, sats_to_process, orbits_to_process,
             output_prod_name = band_params[band]['output_prod_name']
 
             #--- get files that match time
+            file_date_str = f"d{file_dt.year}{file_dt.month:02d}{file_dt.day:02d}_t{file_dt.hour:02d}"
             matching_files = [
-                os.path.basename(f) for f in glob.glob(os.path.join(band_dir, f"*{dt_info['file_date_str']}*"))
-                if dt_info['file_date_str'] in f
+                os.path.basename(f) for f in glob.glob(os.path.join(band_dir, f"*{file_date_str}*"))
+                if file_date_str in f
             ]
             if not matching_files:
                 continue
@@ -154,24 +128,24 @@ def processingAllViirsData(bands_to_process, sats_to_process, orbits_to_process,
 
             #--- run processing
             for orbit in orbits_to_process: 
-                datetime_str = gettingFilesFromOrbit(prod_prefixes, sat, band_dir, band, orbit)
+                gettingFilesFromOrbit(prod_prefixes, sat, band_dir, band, orbit)
                 processing_dir, raw_files_dir = processingViirsFiles(dtstamp_dir, sat, band, orbit, prod_prefixes, band_dir)
                 runningPolar2Grid(log_prefix, sat, band, base_dir, raw_files_dir, orbit, processing_dir)
-                missing_p2g_tags = checkForMissingData(p2g_file_tags, processing_dir, raw_sat_name, sat, orbit, band, datetime_str)
+                missing_p2g_tags = checkForMissingData(p2g_file_tags, processing_dir, raw_sat_name, sat, orbit, band, file_dt)
                 file_count = nameAndFillFiles(p2g_file_tags, processing_dir, raw_sat_name, output_prod_name, ldm_file_tags, missing_p2g_tags, final_dir)
 
                 #--- logging files created for date
-                pattern = os.path.join(final_dir, f'*{dt_info["file_year"]}{dt_info["file_month"]}{dt_info["file_day"]}*.nc.gz')
+                pattern = os.path.join(final_dir, f'*{file_dt.strftime('%Y%m%d')}*.nc.gz')
                 file_count_total = len(glob.glob(pattern))
-                logging.info(f'Created {file_count} AWIPS files. Total for {dt_info["file_year"]}-{dt_info["file_month"]}-{dt_info["file_day"]} is now {file_count_total}.')
+                logging.info(f'Created {file_count} AWIPS files. Total for {file_dt.strftime('%Y-%m-%d')} is now {file_count_total}.')
 
                 removeTempFiles(raw_files_dir, processing_dir)
 
 #-----------------------------------------------------
 
-def createTempAndOutputDir(base_dir, dt_info):
+def createTempAndOutputDir(base_dir, current_dt):
     #--- creating a YYYYMMDD_hhmmss dir for an isolated workspace
-    dtstamp_dir = base_dir + '/' + dt_info['current_datetime'] + '/'
+    dtstamp_dir = f"{base_dir}/{current_dt.strftime('%Y%m%d%H%M%S')}/"
     if not os.path.exists(dtstamp_dir):
         os.makedirs(dtstamp_dir)
 
@@ -184,7 +158,7 @@ def createTempAndOutputDir(base_dir, dt_info):
 
 #-----------------------------------------------------
 
-def setSatellitesAndBands(file_year, julian_day):
+def setSatellitesAndBands(file_dt):
     #--- list of products processed
     #------ (previous note) when you add/remove products, you need to update the ldm injection script on the LDM server (cira-ldm1)
     m_ldm_file_tags = {'m08': 'M08', 'm10': 'M10', 'm11': 'M11', 'm12': 'M12', 'm13': 'M13', 'm14': 'M14', 'm15': 'M15', 'm16': 'M16'}
@@ -193,13 +167,13 @@ def setSatellitesAndBands(file_year, julian_day):
     #--- set up dictionaries for each band
     band_params = {
         'm': {
-            'band_dir': '/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/' + file_year + '/' + str(julian_day) + '/',
+            'band_dir': f'/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/{file_dt.year}/{file_dt.timetuple().tm_yday}/',
             'prod_prefixes': ['GMTCO'] + ['SV' + tag for tag in list(m_ldm_file_tags.values())],
             'ldm_file_tags': m_ldm_file_tags,
             'output_prod_name': 'VIIRS'
         },
         'i': {
-            'band_dir': '/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-IBand/' + file_year + '/' + str(julian_day) + '/',
+            'band_dir': f'/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-IBand/{file_dt.year}/{file_dt.timetuple().tm_yday}/',
             'prod_prefixes': ['GITCO'] + ['SV' + tag for tag in list(i_ldm_file_tags.values())],
             'ldm_file_tags': i_ldm_file_tags,
             'output_prod_name': 'VIIRS'
@@ -275,7 +249,7 @@ def runningPolar2Grid(log_prefix, sat, band, base_dir, raw_files_dir, orbit, pro
     
 #-----------------------------------------------------
 
-def checkForMissingData(p2g_file_tags, processing_dir, raw_sat_name, sat, orbit, band, datetime_str):
+def checkForMissingData(p2g_file_tags, processing_dir, raw_sat_name, sat, orbit, band, file_dt):
     #--- check if channels are missing
     #------ there is definitely a simpler way of doing this
     missing_p2g_tags = []
@@ -284,11 +258,11 @@ def checkForMissingData(p2g_file_tags, processing_dir, raw_sat_name, sat, orbit,
             missing_p2g_tags.append(p2g_tag)
     #--- all files are missing tags, likely due to <10% grid coverage
     if len(missing_p2g_tags) == len(p2g_file_tags):
-        logging.info(f'P2G returned no files for {sat} orbit {orbit} {band}-band at {datetime_str}')
+        logging.info(f'P2G returned no files for {sat} orbit {orbit} {band}-band at {file_dt.strftime("%Y-%m-%d %H:%M UTC")}')
 
     #--- some files are missing tags, likely due to lack of sun
     elif len(missing_p2g_tags) > 0:
-        logging.info(f'P2G rejected {missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {datetime_str}')
+        logging.info(f'P2G rejected {missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {file_dt.strftime("%Y-%m-%d %H:%M UTC")}')
     
     return missing_p2g_tags
 
