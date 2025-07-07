@@ -23,47 +23,26 @@ class State:
     raw_sat_names: dict[str, str] = None
     filepaths: list[str] = None
     raw_files_dir: str = None
+    processing_dir: str = None
     missing_p2g_tags: list[str] = None
 
 def main(raw_args=None):
 
     state = State()
     setUpVariables(state)
-    pprint(state)
     startLogging(state)
-    pprint(state)
     parseArguments(raw_args, state)
-    pprint(state)
     createTempAndOutputDir(state)
-    pprint(state)
     setSatellitesAndBands(state)
-    pprint(state)
     getOrbits(state)
-    pprint(state)
     gettingFilesFromOrbit(state)
-    pprint(state)
     grabbingViirsFiles(state)
     runningPolar2Grid(state)
-    pprint(state)
     checkForMissingData(state)
+    nameAndFillFiles(state)
+    removeTempFiles(state)
+    finishAndClean(state)
     pprint(state)
-
-    
-    
-    # base_dir, bands_to_process, sats_to_process, current_dt, file_dt = setUpVariables()
-    # log_prefix = startLogging(base_dir, current_dt)
-    # bands_to_process, sats_to_process, orbits_to_process, file_dt = parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, file_dt)
-    # dtstamp_dir, final_dir = createTempAndOutputDir(base_dir, current_dt)
-    # band_params, raw_sat_names = setSatellitesAndBands(file_dt)
-    # orbits_to_process = getOrbits(band_params, raw_sat_names, bands_to_process, sats_to_process, orbits_to_process, file_dt)
-    # filepaths = gettingFilesFromOrbit(sats_to_process, bands_to_process, orbits_to_process, band_params)
-    # processing_dir, raw_files_dir = grabbingViirsFiles(sats_to_process, bands_to_process, orbits_to_process, filepaths, dtstamp_dir)
-    # runningPolar2Grid(sats_to_process, bands_to_process, orbits_to_process, log_prefix, base_dir, raw_files_dir)
-    
-    # missing_p2g_tags = checkForMissingData(sats_to_process, bands_to_process, orbits_to_process, band_params, processing_dir, file_dt, raw_sat_names)
-    # nameAndFillFiles(sats_to_process, bands_to_process, orbits_to_process, raw_sat_names, band_params, processing_dir, missing_p2g_tags, final_dir, file_dt)
-    # removeTempFiles(raw_files_dir, processing_dir)
-    # finishAndClean(dtstamp_dir, log_prefix)
 
 #=====================================================
 
@@ -274,9 +253,9 @@ def grabbingViirsFiles(state: State):
         for band in state.bands_to_process:
             for orbit in state.orbits_to_process:
 
-                processing_dir = state.dtstamp_dir + sat + '_' + band + '_' + orbit + '/'
-                os.makedirs(processing_dir)
-                state.raw_files_dir = processing_dir + 'raw_files/'
+                state.processing_dir = state.dtstamp_dir + sat + '_' + band + '_' + orbit + '/'
+                os.makedirs(state.processing_dir)
+                state.raw_files_dir = state.processing_dir + 'raw_files/'
                 os.makedirs(state.raw_files_dir)
 
                 for filepath in state.filepaths:
@@ -333,23 +312,23 @@ def checkForMissingData(state: State):
 
 #-----------------------------------------------------
 
-def nameAndFillFiles(sats_to_process, bands_to_process, orbits_to_process, raw_sat_names, band_params, processing_dir, missing_p2g_tags, final_dir, file_dt):
+def nameAndFillFiles(state: State):
     #--- for each file type, names properly and fills with gzip-compressed data
     
-    for sat in sats_to_process:
-        raw_sat_name = raw_sat_names[sat]
+    for sat in state.sats_to_process:
+        raw_sat_name = state.raw_sat_names[sat]
         
-        for band in bands_to_process:
-            ldm_file_tags = band_params[band]['ldm_file_tags']
+        for band in state.bands_to_process:
+            ldm_file_tags = state.band_params[band]['ldm_file_tags']
             p2g_file_tags = list(ldm_file_tags.keys())
-            output_prod_name = band_params[band]['output_prod_name']
+            output_prod_name = state.band_params[band]['output_prod_name']
             
-            for orbit in orbits_to_process:
+            for orbit in state.orbits_to_process:
 
                 file_count = 0
                 for p2g_tag in p2g_file_tags:
                     for filepath in glob.glob(
-                            processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc'):
+                            state.processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc'):
                         filename = os.path.basename(filepath)
                         filename_pieces = filename.split('_')
 
@@ -360,7 +339,7 @@ def nameAndFillFiles(sats_to_process, bands_to_process, orbits_to_process, raw_s
                                         filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
                                         filename_pieces[6][1:] + '.nc.gz')
 
-                        if p2g_tag not in missing_p2g_tags:
+                        if p2g_tag not in state.missing_p2g_tags:
                             with open(filepath, 'rb') as f_in, gzip.open(final_dir + new_filename, 'wb') as f_out:
                                 f_out.writelines(f_in)
                             file_count += 1 #--- counting files created
@@ -369,34 +348,34 @@ def nameAndFillFiles(sats_to_process, bands_to_process, orbits_to_process, raw_s
                         os.remove(filepath) #--- remove files from processing directory
 
                         #--- logging files created for date
-                        pattern = os.path.join(final_dir, f"*{file_dt.strftime('%Y%m%d')}*.nc.gz")
+                        pattern = os.path.join(state.final_dir, f"*{state.file_dt.strftime('%Y%m%d')}*.nc.gz")
                         file_count_total = len(glob.glob(pattern))
-                        logging.info(f"Created {file_count} AWIPS files. Total for {file_dt.strftime('%Y-%m-%d')} is now {file_count_total}.")
+                        logging.info(f"Created {file_count} AWIPS files. Total for {state.file_dt.strftime('%Y-%m-%d')} is now {file_count_total}.")
         
     return
     
 #-----------------------------------------------------
 
-def removeTempFiles(raw_files_dir, processing_dir):
+def removeTempFiles(state: State):
     # Leave the directory behind if files we don't expect exist (e.g. we didn't finish copy .nc files out)
-    num_h5_files = len(glob.glob(raw_files_dir + '/*.h5'))
-    num_all_files = len(glob.glob(raw_files_dir + '/*'))
+    num_h5_files = len(glob.glob(state.raw_files_dir + '/*.h5'))
+    num_all_files = len(glob.glob(state.raw_files_dir + '/*'))
     if (num_all_files - num_h5_files) == 0:
-        shutil.rmtree(raw_files_dir)
+        shutil.rmtree(state.raw_files_dir)
 
-    if len(glob.glob(processing_dir)) == 1: #--- only log file is left
-        shutil.rmtree(processing_dir)
+    if len(glob.glob(state.processing_dir)) == 1: #--- only log file is left
+        shutil.rmtree(state.processing_dir)
 
     return
 
 #-----------------------------------------------------
 
-def finishAndClean(dtstamp_dir, log_prefix):
+def finishAndClean(state: State):
     #--- if directory is empty, delete it
-    if not os.listdir(dtstamp_dir):
-        shutil.rmtree(dtstamp_dir)
+    if not os.listdir(state.dtstamp_dir):
+        shutil.rmtree(state.dtstamp_dir)
 
-    logging.info(log_prefix + 'Finished at ' + datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    logging.info(state.log_prefix + 'Finished at ' + datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     return
 
 #=====================================================
