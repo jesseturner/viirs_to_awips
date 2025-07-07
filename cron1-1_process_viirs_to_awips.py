@@ -44,6 +44,7 @@ def main(raw_args=None):
     finishAndClean(state)
     pprint(state)
 
+    
 #=====================================================
 
 def setUpVariables(state: State):
@@ -287,6 +288,7 @@ def checkForMissingData(state: State):
     
     for sat in state.sats_to_process:
         raw_sat_name = state.raw_sat_names[sat]
+        
         for band in state.bands_to_process:
             for orbit in state.orbits_to_process:
     
@@ -340,7 +342,7 @@ def nameAndFillFiles(state: State):
                                         filename_pieces[6][1:] + '.nc.gz')
 
                         if p2g_tag not in state.missing_p2g_tags:
-                            with open(filepath, 'rb') as f_in, gzip.open(final_dir + new_filename, 'wb') as f_out:
+                            with open(filepath, 'rb') as f_in, gzip.open(state.final_dir + new_filename, 'wb') as f_out:
                                 f_out.writelines(f_in)
                             file_count += 1 #--- counting files created
 
