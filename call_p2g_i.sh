@@ -8,6 +8,6 @@
     -g us_viirs2awips_i \
     -f $1 \
     -p i01 i02 i03 i04 i05 \
-    --grid-configs grids.conf ~/VIIRS_to_AWIPS/niznik_grids.conf \
+    --grid-configs niznik_grids.conf \
     --tiles 10 14 \
     --filter-day-products 0 \

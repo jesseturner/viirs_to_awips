@@ -17,6 +17,6 @@ while getopts "d:" opt; do
 done
 
 for band in I01 I02 I03 I04 I05 M08 M10 M11 M12 M13 M14 M15 M16; do
-    count=$(find to_ldm_recent/ -maxdepth 1 -type f -name "*${band}*${date_filter}*" | wc -l)
+    count=$(find viirs_awips/ -maxdepth 1 -type f -name "*${band}*${date_filter}*" | wc -l)
     echo "$band: $count"
 done
