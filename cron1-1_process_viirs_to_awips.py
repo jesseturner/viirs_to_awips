@@ -3,53 +3,95 @@
 
 from datetime import datetime
 import argparse, glob, gzip, logging, os, shutil, subprocess, re, sys
+from dataclasses import dataclass
+from pprint import pprint
 
 #=====================================================
+
+@dataclass
+class State:
+    base_dir: str = None
+    sats_to_process: list[str] = None
+    bands_to_process: list[str] = None
+    orbits_to_process: list[str] = None
+    current_dt: datetime = None
+    file_dt: datetime = None
+    log_prefix: str = None
+    dtstamp_dir: str = None
+    final_dir: str = None
+    band_params: dict[str, str] = None
+    raw_sat_names: dict[str, str] = None
+    filepaths: list[str] = None
+    raw_files_dir: str = None
+    missing_p2g_tags: list[str] = None
 
 def main(raw_args=None):
+
+    state = State()
+    setUpVariables(state)
+    pprint(state)
+    startLogging(state)
+    pprint(state)
+    parseArguments(raw_args, state)
+    pprint(state)
+    createTempAndOutputDir(state)
+    pprint(state)
+    setSatellitesAndBands(state)
+    pprint(state)
+    getOrbits(state)
+    pprint(state)
+    gettingFilesFromOrbit(state)
+    pprint(state)
+    grabbingViirsFiles(state)
+    runningPolar2Grid(state)
+    pprint(state)
+    checkForMissingData(state)
+    pprint(state)
+
     
-    base_dir, bands_to_process, sats_to_process, current_dt, file_dt = setUpVariables()
-    print(f'Base dir: {base_dir} \n Bands to process: {bands_to_process} \n Sats to process: {sats_to_process} \n Current dt: {current_dt} \n File dt: {file_dt}')
-    log_prefix = startLogging(base_dir, current_dt)
-    bands_to_process, sats_to_process, orbits_to_process, file_dt = parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, file_dt)
-    dtstamp_dir, final_dir = createTempAndOutputDir(base_dir, current_dt)
-    band_params, raw_sat_names = setSatellitesAndBands(file_dt)
-    orbits_to_process = getOrbits(band_params, raw_sat_names, bands_to_process, sats_to_process, orbits_to_process, file_dt)
-    filepaths = gettingFilesFromOrbit(sats_to_process, bands_to_process, orbits_to_process, band_params)
-    processing_dir, raw_files_dir = grabbingViirsFiles(sats_to_process, bands_to_process, orbits_to_process, filepaths, dtstamp_dir)
-    runningPolar2Grid(sats_to_process, bands_to_process, orbits_to_process, log_prefix, base_dir, raw_files_dir)
-    missing_p2g_tags = checkForMissingData(sats_to_process, bands_to_process, orbits_to_process, band_params, processing_dir, file_dt, raw_sat_names)
-    nameAndFillFiles(sats_to_process, bands_to_process, orbits_to_process, raw_sat_names, band_params, processing_dir, missing_p2g_tags, final_dir, file_dt)
-    removeTempFiles(raw_files_dir, processing_dir)
-    finishAndClean(dtstamp_dir, log_prefix)
+    
+    # base_dir, bands_to_process, sats_to_process, current_dt, file_dt = setUpVariables()
+    # log_prefix = startLogging(base_dir, current_dt)
+    # bands_to_process, sats_to_process, orbits_to_process, file_dt = parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, file_dt)
+    # dtstamp_dir, final_dir = createTempAndOutputDir(base_dir, current_dt)
+    # band_params, raw_sat_names = setSatellitesAndBands(file_dt)
+    # orbits_to_process = getOrbits(band_params, raw_sat_names, bands_to_process, sats_to_process, orbits_to_process, file_dt)
+    # filepaths = gettingFilesFromOrbit(sats_to_process, bands_to_process, orbits_to_process, band_params)
+    # processing_dir, raw_files_dir = grabbingViirsFiles(sats_to_process, bands_to_process, orbits_to_process, filepaths, dtstamp_dir)
+    # runningPolar2Grid(sats_to_process, bands_to_process, orbits_to_process, log_prefix, base_dir, raw_files_dir)
+    
+    # missing_p2g_tags = checkForMissingData(sats_to_process, bands_to_process, orbits_to_process, band_params, processing_dir, file_dt, raw_sat_names)
+    # nameAndFillFiles(sats_to_process, bands_to_process, orbits_to_process, raw_sat_names, band_params, processing_dir, missing_p2g_tags, final_dir, file_dt)
+    # removeTempFiles(raw_files_dir, processing_dir)
+    # finishAndClean(dtstamp_dir, log_prefix)
 
 #=====================================================
 
-def setUpVariables():
+def setUpVariables(state: State):
 
-    base_dir = os.getcwd()
-    bands_to_process = ['m', 'i']
-    sats_to_process = ['NPP', 'J01', 'J02']
-    current_dt = datetime.now() #datetime(2025, 7, 1, 10, 33, 33)
-    file_dt = datetime.now() #datetime(2025, 7, 1, 10, 33, 33)
+    state.base_dir = os.getcwd()
+    state.bands_to_process = ['m', 'i']
+    state.sats_to_process = ['NPP', 'J01', 'J02']
+    state.current_dt = datetime.now() #datetime(2025, 7, 1, 10, 33, 33)
+    state.file_dt = datetime.now() #datetime(2025, 7, 1, 10, 33, 33)
 
-    return base_dir, bands_to_process, sats_to_process, current_dt, file_dt
+    return
 
 #-----------------------------------------------------
 
-def startLogging(base_dir, current_dt): 
+def startLogging(state: State): 
 
-    logging_dir = base_dir + '/logs/'
+    logging_dir = state.base_dir + '/logs/'
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
-    logging.basicConfig(filename=logging_dir + current_dt.strftime('%Y%m%d') + '.log', level=logging.INFO)
-    log_prefix = f"{current_dt.strftime('%Y-%m-%d %H:%M:%S')} Z - "
+    logging.basicConfig(filename=logging_dir + state.current_dt.strftime('%Y%m%d') + '.log', level=logging.INFO)
+    state.log_prefix = f"{state.current_dt.strftime('%Y-%m-%d %H:%M:%S')} Z - "
 
-    return log_prefix
+    return
 
 #-----------------------------------------------------
 
-def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, file_dt):
+def parseArguments(raw_args, state: State):
 
     #--- arguments are in the form of a list of strings, i.e. ['-d', '20250611']
     parser = argparse.ArgumentParser(description='Process incoming data from /mnt/viirs/WI-CONUS/NPP for AWIPS ingestion')
@@ -64,63 +106,59 @@ def parseArguments(raw_args, bands_to_process, sats_to_process, log_prefix, file
     
     args = parser.parse_args(raw_args)
 
-    orbits_to_process = [] #--- initialize orbits list
-
     #--- No arguments
     if len(sys.argv) == 1:
-        logging.info(f"{log_prefix} Looking for data from {file_dt.strftime('%Y-%m-%d %H')}:00 UTC")
+        logging.info(f"{state.log_prefix} Looking for data from {state.file_dt.strftime('%Y-%m-%d %H')}:00 UTC")
 
     #--- Specified orbit
     if args.orbit:
-        orbits_to_process = [args.orbit if args.orbit[0] == 'b' else ('b' + args.orbit)]
-        logging.info(f"{log_prefix} Running for orbit {orbits_to_process}")
+        state.orbits_to_process = [args.orbit if args.orbit[0] == 'b' else ('b' + args.orbit)]
+        logging.info(f"{state.log_prefix} Running for orbit {state.orbits_to_process}")
 
     #--- Specified band
     if args.freq_band:
-        if args.freq_band not in bands_to_process:
+        if args.freq_band not in state.bands_to_process:
             logging.error('Invalid single-band input; valid options are "i" and "m"')
             exit(1)
-        bands_to_process = [args.freq_band]
+        state.bands_to_process = [args.freq_band]
 
     #--- Specified satellite
     if args.satellite:
-        if args.satellite not in sats_to_process:
+        if args.satellite not in state.sats_to_process:
             logging.error('Invalid satellite input; valid options are "NPP", "J01", and "J02"')
             exit(1)
-        sats_to_process = [args.satellite]
+        state.sats_to_process = [args.satellite]
 
     #--- Specified date
     if args.file_date:
         #--- Depending on if hour is specified or not
         if len(args.file_date) == 10:  #--- format: YYYYMMDDhh
-            file_dt = datetime.strptime(args.file_date, "%Y%m%d%H")
-            logging.info(f"{log_prefix} Looking for data from {file_dt.strftime('%Y-%m-%d %H')}:00 UTC")
+            state.file_dt = datetime.strptime(args.file_date, "%Y%m%d%H")
+            logging.info(f"{state.log_prefix} Looking for data from {state.file_dt.strftime('%Y-%m-%d %H')}:00 UTC")
         elif len(args.file_date) == 8:  #--- format: YYYYMMDD
-            file_dt = datetime.strptime(args.file_date, "%Y%m%d")
-            logging.info(f"{log_prefix} Looking for all data from {file_dt.strftime('%Y-%m-%d')}")
+            state.file_dt = datetime.strptime(args.file_date, "%Y%m%d")
+            logging.info(f"{state.log_prefix} Looking for all data from {state.file_dt.strftime('%Y-%m-%d')}")
         else:
             raise ValueError("file_date must be in YYYYMMDD or YYYYMMDDhh format")
         
     
-    return bands_to_process, sats_to_process, orbits_to_process, file_dt
+    return
 
 #-----------------------------------------------------
 
-def getOrbits(band_params, raw_sat_names, bands_to_process, sats_to_process, orbits_to_process, file_dt):
+def getOrbits(state: State):
+
+    if not state.orbits_to_process: #--- initialize, if no argument for orbits
+        state.orbits_to_process = []
     
-    for sat in sats_to_process:    #--- NPP, J01, J02
-        raw_sat_name = raw_sat_names[sat]
-        for band in bands_to_process:   #--- m, i
+    for sat in state.sats_to_process:    #--- NPP, J01, J02
+        for band in state.bands_to_process:   #--- m, i
             
             #--- set band parameters
-            band_dir = band_params[band]['band_dir'].replace('_replacewithsat_', sat)
-            prod_prefixes = band_params[band]['prod_prefixes']
-            ldm_file_tags = band_params[band]['ldm_file_tags']
-            p2g_file_tags = list(ldm_file_tags.keys())
-            output_prod_name = band_params[band]['output_prod_name']
+            band_dir = state.band_params[band]['band_dir'].replace('_replacewithsat_', sat)
 
             #--- get files that match time
-            file_date_str = f"d{file_dt.year}{file_dt.month:02d}{file_dt.day:02d}_t{file_dt.hour:02d}"
+            file_date_str = f"d{state.file_dt.year}{state.file_dt.month:02d}{state.file_dt.day:02d}_t{state.file_dt.hour:02d}"
             matching_files = [
                 os.path.basename(f) for f in glob.glob(os.path.join(band_dir, f"*{file_date_str}*"))
                 if file_date_str in f
@@ -131,67 +169,67 @@ def getOrbits(band_params, raw_sat_names, bands_to_process, sats_to_process, orb
             #--- create orbits list from matching files
             for filename in matching_files:  
                 orbit = filename.split('_')[5]
-                if orbit not in orbits_to_process:
-                    orbits_to_process.append(orbit)
+                if orbit not in state.orbits_to_process:
+                    state.orbits_to_process.append(orbit)
     
-    return orbits_to_process
+    return
 
 #-----------------------------------------------------
 
-def createTempAndOutputDir(base_dir, current_dt):
+def createTempAndOutputDir(state: State):
     #--- creating a YYYYMMDD_hhmmss dir for an isolated workspace
-    dtstamp_dir = f"{base_dir}/{current_dt.strftime('%Y%m%d%H%M%S')}/"
-    if not os.path.exists(dtstamp_dir):
-        os.makedirs(dtstamp_dir)
+    state.dtstamp_dir = f"{state.base_dir}/{state.current_dt.strftime('%Y%m%d%H%M%S')}/"
+    if not os.path.exists(state.dtstamp_dir):
+        os.makedirs(state.dtstamp_dir)
 
     #--- creating the output directories
-    final_dir = base_dir + '/viirs_awips/'
+    final_dir = state.base_dir + '/viirs_awips/'
     if not os.path.exists(final_dir):
         os.makedirs(final_dir)
     
-    return dtstamp_dir, final_dir
+    return
 
 #-----------------------------------------------------
 
-def setSatellitesAndBands(file_dt):
+def setSatellitesAndBands(state: State):
     #--- list of products processed
     #------ (previous note) when you add/remove products, you need to update the ldm injection script on the LDM server (cira-ldm1)
     m_ldm_file_tags = {'m08': 'M08', 'm10': 'M10', 'm11': 'M11', 'm12': 'M12', 'm13': 'M13', 'm14': 'M14', 'm15': 'M15', 'm16': 'M16'}
     i_ldm_file_tags = {'i01': 'I01', 'i02': 'I02', 'i03': 'I03', 'i04': 'I04', 'i05': 'I05'}
 
     #--- set up dictionaries for each band
-    band_params = {
+    state.band_params = {
         'm': {
-            'band_dir': f"/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/{file_dt.year}/{file_dt.timetuple().tm_yday}/",
+            'band_dir': f"/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/{state.file_dt.year}/{state.file_dt.timetuple().tm_yday}/",
             'prod_prefixes': ['GMTCO'] + ['SV' + tag for tag in list(m_ldm_file_tags.values())],
             'ldm_file_tags': m_ldm_file_tags,
             'output_prod_name': 'VIIRS'
         },
         'i': {
-            'band_dir': f"/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-IBand/{file_dt.year}/{file_dt.timetuple().tm_yday}/",
+            'band_dir': f"/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-IBand/{state.file_dt.year}/{state.file_dt.timetuple().tm_yday}/",
             'prod_prefixes': ['GITCO'] + ['SV' + tag for tag in list(i_ldm_file_tags.values())],
             'ldm_file_tags': i_ldm_file_tags,
             'output_prod_name': 'VIIRS'
         }
     }
 
-    raw_sat_names = {'NPP': 'npp', 'J01': 'noaa20' , 'J02': 'noaa21'}
+    state.raw_sat_names = {'NPP': 'npp', 'J01': 'noaa20' , 'J02': 'noaa21'}
 
-    return band_params, raw_sat_names
+    return
 
 #-----------------------------------------------------
 
-def gettingFilesFromOrbit(sats_to_process, bands_to_process, orbits_to_process, band_params):
+def gettingFilesFromOrbit(state: State):
 
-    filepaths = []
+    state.filepaths = [] #--- Initialize
 
-    for sat in sats_to_process:
-        for band in bands_to_process:
-            prod_prefixes = band_params[band]['prod_prefixes']
+    for sat in state.sats_to_process:
+        for band in state.bands_to_process:
+            prod_prefixes = state.band_params[band]['prod_prefixes']
 
-            for orbit in orbits_to_process:
+            for orbit in state.orbits_to_process:
                 #--- create list of recent orbit files
-                band_dir = band_params[band]['band_dir'].replace('_replacewithsat_', sat)
+                band_dir = state.band_params[band]['band_dir'].replace('_replacewithsat_', sat)
                 orbit_files_recent = [f for f in os.listdir(band_dir) if
                                     f[0:5] in prod_prefixes and '_' + orbit + '_' in f]
                 
@@ -209,12 +247,12 @@ def gettingFilesFromOrbit(sats_to_process, bands_to_process, orbits_to_process, 
                         continue
                     
                     #--- logging the files used
-                    filepaths = glob.glob(os.path.join(band_dir, prefix + '*_' + orbit + '_*'))
-                    if not filepaths:
+                    state.filepaths = glob.glob(os.path.join(band_dir, prefix + '*_' + orbit + '_*'))
+                    if not state.filepaths:
                         continue
                     else: 
-                        filepaths.sort()  #--- sort to follow time order
-                        first_file = os.path.basename(filepaths[0])
+                        state.filepaths.sort()  #--- sort to follow time order
+                        first_file = os.path.basename(state.filepaths[0])
                         match = re.search(r'd(\d{8})_t(\d{2})(\d{2})', first_file)
                         if match:
                             date_str, hour, minute = match.groups()
@@ -223,73 +261,75 @@ def gettingFilesFromOrbit(sats_to_process, bands_to_process, orbits_to_process, 
                         else:
                             datetime_str = "Unknown datetime"
                 
-    if filepaths:
-        logging.info(f"Processing {len(filepaths)} VIIRS files for {sat} orbit {orbit} {band}-band at {datetime_str}")  
+    if state.filepaths:
+        logging.info(f"Processing {len(state.filepaths)} VIIRS files for {sat} orbit {orbit} {band}-band at {datetime_str}")  
     
-    return filepaths
+    return
     
 #-----------------------------------------------------
 
-def grabbingViirsFiles(sats_to_process, bands_to_process, orbits_to_process, filepaths, dtstamp_dir):
+def grabbingViirsFiles(state: State):
 
-    for sat in sats_to_process:
-        for band in bands_to_process:
-            for orbit in orbits_to_process:
+    for sat in state.sats_to_process:
+        for band in state.bands_to_process:
+            for orbit in state.orbits_to_process:
 
-                processing_dir = dtstamp_dir + sat + '_' + band + '_' + orbit + '/'
+                processing_dir = state.dtstamp_dir + sat + '_' + band + '_' + orbit + '/'
                 os.makedirs(processing_dir)
-                raw_files_dir = processing_dir + 'raw_files/'
-                os.makedirs(raw_files_dir)
+                state.raw_files_dir = processing_dir + 'raw_files/'
+                os.makedirs(state.raw_files_dir)
 
-                for filepath in filepaths:
-                    shutil.copy(filepath, raw_files_dir) #--- copying the file
+                for filepath in state.filepaths:
+                    shutil.copy(filepath, state.raw_files_dir) #--- copying the file
             
-    return processing_dir, raw_files_dir
+    return
     
 #-----------------------------------------------------
 
-def runningPolar2Grid(sats_to_process, bands_to_process, orbits_to_process, log_prefix, base_dir, raw_files_dir):
+def runningPolar2Grid(state: State):
     #--- running the polar2grid package
     #------ this is the very core of the processing
 
-    for sat in sats_to_process:
-        for band in bands_to_process:
-            for orbit in orbits_to_process:
+    for sat in state.sats_to_process:
+        for band in state.bands_to_process:
+            for orbit in state.orbits_to_process:
         
-                print(log_prefix + 'Running p2g for ' + sat + ' ' + band + ' band ')
+                print(state.log_prefix + 'Running p2g for ' + sat + ' ' + band + ' band ')
                 p2g_status = subprocess.call(
-                    ['bash', base_dir + '/call_p2g_' + band + '.sh', raw_files_dir], cwd=base_dir)
-                print(log_prefix + 'Finished running p2g for ' + sat + ' (orbit ' + orbit + ') ' + band + ' band with exit status ' + str(
+                    ['bash', state.base_dir + '/call_p2g_' + band + '.sh', state.raw_files_dir], cwd=state.base_dir)
+                print(state.log_prefix + 'Finished running p2g for ' + sat + ' (orbit ' + orbit + ') ' + band + ' band with exit status ' + str(
                     p2g_status))
+                
+    return
     
 #-----------------------------------------------------
 
-def checkForMissingData(sats_to_process, bands_to_process, orbits_to_process, band_params, processing_dir, file_dt, raw_sat_names):
+def checkForMissingData(state: State):
     
-    for sat in sats_to_process:
-        raw_sat_name = raw_sat_names[sat]
-        for band in bands_to_process:
-            for orbit in orbits_to_process:
+    for sat in state.sats_to_process:
+        raw_sat_name = state.raw_sat_names[sat]
+        for band in state.bands_to_process:
+            for orbit in state.orbits_to_process:
     
                 #--- check if channels are missing
                 #------ there is definitely a simpler way of doing this
                 
-                ldm_file_tags = band_params[band]['ldm_file_tags']
+                ldm_file_tags = state.band_params[band]['ldm_file_tags']
                 p2g_file_tags = list(ldm_file_tags.keys())
 
-                missing_p2g_tags = []
+                state.missing_p2g_tags = []
                 for p2g_tag in p2g_file_tags:
-                    if len(glob.glob(processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc')) == 0:
-                        missing_p2g_tags.append(p2g_tag)
+                    if len(glob.glob(state.processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc')) == 0:
+                        state.missing_p2g_tags.append(p2g_tag)
                 #--- all files are missing tags, likely due to <10% grid coverage
-                if len(missing_p2g_tags) == len(p2g_file_tags):
-                    logging.info(f"P2G returned no files for {sat} orbit {orbit} {band}-band at {file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
+                if len(state.missing_p2g_tags) == len(p2g_file_tags):
+                    logging.info(f"P2G returned no files for {sat} orbit {orbit} {band}-band at {state.file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
 
                 #--- some files are missing tags, likely due to lack of sun
-                elif len(missing_p2g_tags) > 0:
-                    logging.info(f"P2G rejected {missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
+                elif len(state.missing_p2g_tags) > 0:
+                    logging.info(f"P2G rejected {state.missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {state.file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
     
-    return missing_p2g_tags
+    return
 
 #-----------------------------------------------------
 
