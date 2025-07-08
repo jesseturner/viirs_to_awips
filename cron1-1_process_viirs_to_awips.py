@@ -280,7 +280,7 @@ def runningPolar2Grid(base, iter_state, sat, band, orbit):
     if os.listdir(iter_state.raw_files_dir):  #--- checks if directory is not empty
         p2g_status = subprocess.call(
             ['bash', os.path.join(base.base_dir, f'call_p2g_{band}.sh'), iter_state.raw_files_dir],
-            cwd=base.base_dir
+            cwd=iter_state.processing_dir
         )
 
         print(f"{base.log_prefix} Finished running p2g for {sat} (orbit {orbit}) {band} band with exit status {p2g_status}")
