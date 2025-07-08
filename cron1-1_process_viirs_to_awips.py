@@ -54,7 +54,7 @@ def main(raw_args=None):
                 nameAndFillFiles(base, iter_state, sat, band, orbit)
                 removeTempFiles(iter_state)
 
-                pprint(iter_state)
+                #pprint(iter_state)
 
     finishAndClean(base)
     
@@ -237,7 +237,7 @@ def gettingFilesFromOrbit(base, iter_state, sat, band, orbit):
             continue
         
         #--- logging the files used
-        iter_state.filepaths = glob.glob(os.path.join(band_dir, prefix + '*_' + orbit + '_*'))
+        iter_state.filepaths.extend(glob.glob(os.path.join(band_dir, prefix + '*_' + orbit + '_*')))
         if not iter_state.filepaths:
             continue
         else: 
@@ -346,10 +346,10 @@ def nameAndFillFiles(base, iter_state, sat, band, orbit):
             #shutil.copy(copy_to_ldm_dir + new_filename, final_dir + new_filename)
             os.remove(filepath) #--- remove files from processing directory
 
-            #--- logging files created for date
-            pattern = os.path.join(base.final_dir, f"*{base.file_dt.strftime('%Y%m%d')}*.nc.gz")
-            file_count_total = len(glob.glob(pattern))
-            logging.info(f"Created {file_count} AWIPS files. Total for {base.file_dt.strftime('%Y-%m-%d')} is now {file_count_total}.")
+    #--- logging files created for date
+    pattern = os.path.join(base.final_dir, f"*{base.file_dt.strftime('%Y%m%d')}*.nc.gz")
+    file_count_total = len(glob.glob(pattern))
+    logging.info(f"Created {file_count} AWIPS files. Total for {base.file_dt.strftime('%Y-%m-%d')} is now {file_count_total}.")
         
     return
     
