@@ -29,7 +29,7 @@ fi
 /bin/touch "$lock"
 
 # Main processing
-/usr/bin/env python3 $working_dir/cron1-1_process_viirs_to_awips.py
+/usr/bin/python3.11 $working_dir/cron1-1_process_viirs_to_awips.py
 /bin/bash $working_dir/cron1-2_move_files_to_ldm.sh
 /bin/mv $working_dir/viirs_awips/*.nc.gz $working_dir/to_ldm_recent/. 2> /dev/null
 
