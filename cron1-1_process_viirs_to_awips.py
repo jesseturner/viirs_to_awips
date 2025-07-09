@@ -1,5 +1,4 @@
-#------ run on polarbear3 with python3
-#------ rename to make it more clear this is the main processing code
+#------ built to run on polarbear3 with python3
 
 from datetime import datetime
 import argparse, glob, gzip, logging, os, shutil, subprocess, re, sys
