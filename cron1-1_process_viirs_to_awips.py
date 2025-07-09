@@ -36,10 +36,10 @@ def main(raw_args=None):
     setUpVariables(base)
     startLogging(base)
     parseArguments(raw_args, base)
+    pprint(base)
     createTempAndOutputDir(base)
     setSatellitesAndBands(base)
     getOrbits(base)
-    pprint(base)
 
     for sat in base.sats_to_process:
         for band in base.bands_to_process:
@@ -149,8 +149,13 @@ def getOrbits(base: BaseState):
             #--- set band parameters
             band_dir = base.band_params[band]['band_dir'].replace('_replacewithsat_', sat)
 
-            #--- get files that match time
-            file_date_str = f"d{base.file_dt.year}{base.file_dt.month:02d}{base.file_dt.day:02d}_t{base.file_dt.hour:02d}"
+            #--- create search term for files
+            if base.file_dt.hour == 0 and base.file_dt.second == 0: #--- if full day (YYYYMMDD) is provided in argument, do not include hour
+                file_date_str = f"d{base.file_dt.year}{base.file_dt.month:02d}{base.file_dt.day:02d}"
+            else:
+                file_date_str = f"d{base.file_dt.year}{base.file_dt.month:02d}{base.file_dt.day:02d}_t{base.file_dt.hour:02d}"
+            
+            #--- get files that match search term
             matching_files = [
                 os.path.basename(f) for f in glob.glob(os.path.join(band_dir, f"*{file_date_str}*"))
                 if file_date_str in f
