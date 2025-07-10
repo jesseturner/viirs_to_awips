@@ -9,3 +9,4 @@ __pycache__
 /view_example/viirs_to_awips_env
 lock-viirs-to-awips
 *.log
+TESTING/*
