@@ -1,7 +1,7 @@
 import cron1_1_process_viirs_to_awips as v2a
 from pprint import pprint
 from datetime import datetime, timedelta
-import os
+import os, shutil
 
 print("--------------- Testing ---------------")
 
@@ -84,5 +84,15 @@ passed_test = all(test)
 if passed_test: print("PASSED get orbits")
 else: print("FAILED get orbits")
 
-
 #pprint(base)
+
+#--- clean out testing dir
+testing_dir = '/mnt/data1/jturner/TESTING'
+
+for item in os.listdir(testing_dir):
+    item_path = os.path.join(testing_dir, item)
+    if os.path.isfile(item_path) or os.path.islink(item_path):
+        os.unlink(item_path)
+    elif os.path.isdir(item_path):
+        shutil.rmtree(item_path)
+
