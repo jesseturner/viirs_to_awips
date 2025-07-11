@@ -15,14 +15,8 @@ v2a.startLogging(base)
 #--- testing argument logic
 test = []
 
-v2a.parseArguments(['-b', 'b39596'], base)
-test.append(base.orbits_to_process == ['b39596'] or print("FAIL at -b"))
-
 v2a.parseArguments(['-f', 'i'], base)
 test.append(base.bands_to_process == ['i'] or print("FAIL at -f"))
-
-v2a.parseArguments(['-s', 'J01'], base)
-test.append(base.sats_to_process == ['J01'] or print("FAIL at -s"))
 
 v2a.parseArguments(['-d', '20250710'], base)
 test.append(base.file_dt == datetime(2025, 7, 10, 0, 0, 0, 0) or print("FAIL at -d"))
@@ -59,7 +53,6 @@ else: print("FAILED set satellites and bands")
 
 #--- testing get orbits
 test = []
-base.orbits_to_process = None #--- no set orbit
 base.bands_to_process = ['m', 'i']
 base.sats_to_process = ['NPP', 'J01', 'J02']
 
@@ -67,37 +60,33 @@ dt = datetime.now() - timedelta(days=1) #--- orbits for full day yesterday (shou
 dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
 base.file_dt = dt
 v2a.setSatellitesAndBands(base)
-v2a.getOrbits(base)
-test.append(len(base.orbits_to_process) == 23 or 
-            print(f"WARNING at full day getOrbits, {len(base.orbits_to_process)} orbits"))
+orbits_to_process = v2a.getOrbits(base)
+test.append(len(orbits_to_process) == 23 or 
+            print(f"WARNING at full day getOrbits, {len(orbits_to_process)} orbits"))
 
-base.orbits_to_process = None
+orbits_to_process = None
 dt = datetime.now() - timedelta(days=1) #--- orbits yesterday at 6 UTC (should be 23)
 dt = dt.replace(hour=6, minute=0, second=0, microsecond=0)
 base.file_dt = dt
 v2a.setSatellitesAndBands(base)
-v2a.getOrbits(base)
-test.append(len(base.orbits_to_process) == 3 or 
-            print(f"WARNING at 06:00 UTC getOrbits, {len(base.orbits_to_process)} orbits"))
+orbits_to_process = v2a.getOrbits(base)
+test.append(len(orbits_to_process) == 3 or 
+            print(f"WARNING at 06:00 UTC getOrbits, {len(orbits_to_process)} orbits"))
 
 passed_test = all(test)
 if passed_test: print("PASSED get orbits")
 else: print("FAILED get orbits")
 
-pprint(base)
-
 #--- testing get files from orbit
 test = []
 
-for sat in base.sats_to_process:
-    for band in base.bands_to_process:
-        for orbit in base.orbits_to_process:
-            
-            iter_state = v2a.IterState()
-            v2a.gettingFilesFromOrbit(base, iter_state, sat, band, orbit)
+for band in base.bands_to_process:
+    for orbit_file in orbits_to_process:
 
-            test.append(iter_state.filepaths or 
-            print(f"WARNING no files for {sat} {band} {orbit}"))
+        v2a.gettingFilesFromOrbit(base, band, orbit_file)
+
+        test.append(orbit_file.filepaths or 
+        print(f"WARNING no files for {orbit_file.sat} {band} {orbit_file.orbit}"))
 
 passed_test = all(test)
 if passed_test: print("PASSED get filepaths")
