@@ -92,6 +92,28 @@ passed_test = all(test)
 if passed_test: print("PASSED get filepaths")
 else: print("FAILED get filepaths")
 
+#--- testing grabbing VIIRS files
+#------ not implemented due to slower process
+
+# test = []
+
+# for band in base.bands_to_process:
+#     for orbit_file in orbits_to_process:
+
+#         v2a.grabbingViirsFiles(base, band, orbit_file)
+
+#         test.append((orbit_file.raw_files_dir and orbit_file.processing_dir) or 
+#         print(f"FAIL at creating temp directories"))
+
+#         test.append(bool(os.listdir(orbit_file.raw_files_dir)) or 
+#         print(f"FAIL at copying data to raw_files_dir"))
+
+# passed_test = all(test)
+# if passed_test: print("PASSED grab VIIRS files")
+# else: print("FAILED grab VIIRS files")
+
+#--- testing running P2G
+
 
 #--- clean out testing dir
 testing_dir = '/mnt/data1/jturner/TESTING'
