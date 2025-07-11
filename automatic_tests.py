@@ -78,13 +78,31 @@ base.file_dt = dt
 v2a.setSatellitesAndBands(base)
 v2a.getOrbits(base)
 test.append(len(base.orbits_to_process) == 3 or 
-            print(f"WARNING at full day getOrbits, {len(base.orbits_to_process)} orbits"))
+            print(f"WARNING at 06:00 UTC getOrbits, {len(base.orbits_to_process)} orbits"))
 
 passed_test = all(test)
 if passed_test: print("PASSED get orbits")
 else: print("FAILED get orbits")
 
-#pprint(base)
+pprint(base)
+
+#--- testing get files from orbit
+test = []
+
+for sat in base.sats_to_process:
+    for band in base.bands_to_process:
+        for orbit in base.orbits_to_process:
+            
+            iter_state = v2a.IterState()
+            v2a.gettingFilesFromOrbit(base, iter_state, sat, band, orbit)
+
+            test.append(iter_state.filepaths or 
+            print(f"WARNING no files for {sat} {band} {orbit}"))
+
+passed_test = all(test)
+if passed_test: print("PASSED get filepaths")
+else: print("FAILED get filepaths")
+
 
 #--- clean out testing dir
 testing_dir = '/mnt/data1/jturner/TESTING'

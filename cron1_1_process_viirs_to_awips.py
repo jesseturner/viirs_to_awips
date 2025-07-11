@@ -7,12 +7,20 @@ from pprint import pprint
 
 #=====================================================
 
-@dataclass #--- Config settings that remain constant
+@dataclass
+class OrbitFiles:
+    sat: str = None
+    orbit: str = None
+    filepaths: list[str] = None
+    raw_files_dir: str = None
+    processing_dir: str = None
+    missing_p2g_tags: list[str] = None
+
+@dataclass #--- Config settings
 class BaseState:
     base_dir: str = None
     sats_to_process: list[str] = None
     bands_to_process: list[str] = None
-    orbits_to_process: list[str] = None
     current_dt: datetime = None
     file_dt: datetime = None
     log_prefix: str = None
@@ -21,12 +29,6 @@ class BaseState:
     band_params: dict[str, str] = None
     raw_sat_names: dict[str, str] = None
 
-@dataclass #--- Changing each orbit
-class IterState:
-    filepaths: list[str] = None
-    raw_files_dir: str = None
-    processing_dir: str = None
-    missing_p2g_tags: list[str] = None
 
 #=====================================================
 
@@ -36,24 +38,22 @@ def main(raw_args=None):
     setUpVariables(base)
     startLogging(base)
     parseArguments(raw_args, base)
-    pprint(base)
     createTempAndOutputDir(base)
     setSatellitesAndBands(base)
-    getOrbits(base)
+    pprint(base)
+    orbits_to_process = getOrbits(base)
 
-    for sat in base.sats_to_process:
-        for band in base.bands_to_process:
-            for orbit in base.orbits_to_process:
-                iter_state = IterState()
+    for band in base.bands_to_process:
+        for orbit_file in orbits_to_process:
 
-                gettingFilesFromOrbit(base, iter_state, sat, band, orbit)
-                grabbingViirsFiles(base, iter_state, sat, band, orbit)
-                runningPolar2Grid(base, iter_state, sat, band, orbit)
-                checkForMissingData(base, iter_state, sat, band, orbit)
-                nameAndFillFiles(base, iter_state, sat, band, orbit)
-                removeTempFiles(iter_state)
+            gettingFilesFromOrbit(base, band, orbit_file)
+            grabbingViirsFiles(base, band, orbit_file)
+            runningPolar2Grid(base, band, orbit_file)
+            checkForMissingData(base, band, orbit_file)
+            nameAndFillFiles(base, band, orbit_file)
+            removeTempFiles(orbit_file)
 
-                #pprint(iter_state)
+            pprint(orbit_file)
 
     finishAndClean(base)
     
@@ -87,12 +87,8 @@ def parseArguments(raw_args, base: BaseState):
 
     #--- arguments are in the form of a list of strings, i.e. ['-d', '20250611']
     parser = argparse.ArgumentParser(description='Process incoming data from /mnt/viirs/WI-CONUS/NPP for AWIPS ingestion')
-    parser.add_argument('-b', '--orbit', type=str,
-                        help='Ignore the time search and only process files for orbit b (can omit the leading b)')
     parser.add_argument('-f', '--freq-band', type=str,
                         help='Only process the files for the indicated band groupings (valid inputs are "i" and "m"')
-    parser.add_argument('-s', '--satellite', type=str,
-                        help='Only process the selected satellite ("NPP", "J01", and "J02")')
     parser.add_argument('-d', '--file-date', type=str,
                         help='Run for the full 24 hours of a specific date (YYYYMMDD format) or for a specific hour (YYYYMMDDhh format)')
     
@@ -102,24 +98,12 @@ def parseArguments(raw_args, base: BaseState):
     if len(sys.argv) == 1:
         logging.info(f"{base.log_prefix} Looking for data from {base.file_dt.strftime('%Y-%m-%d %H')}:00 UTC")
 
-    #--- Specified orbit
-    if args.orbit:
-        base.orbits_to_process = [args.orbit if args.orbit[0] == 'b' else ('b' + args.orbit)]
-        logging.info(f"{base.log_prefix} Running for orbit {base.orbits_to_process}")
-
     #--- Specified band
     if args.freq_band:
         if args.freq_band not in base.bands_to_process:
             logging.error('Invalid single-band input; valid options are "i" and "m"')
             exit(1)
         base.bands_to_process = [args.freq_band]
-
-    #--- Specified satellite
-    if args.satellite:
-        if args.satellite not in base.sats_to_process:
-            logging.error('Invalid satellite input; valid options are "NPP", "J01", and "J02"')
-            exit(1)
-        base.sats_to_process = [args.satellite]
 
     #--- Specified date
     if args.file_date:
@@ -140,8 +124,7 @@ def parseArguments(raw_args, base: BaseState):
 
 def getOrbits(base: BaseState):
 
-    if not base.orbits_to_process: #--- initialize, if no argument for orbits
-        base.orbits_to_process = []
+    orbits_to_process = []
     
     for sat in base.sats_to_process:    #--- NPP, J01, J02
         for band in base.bands_to_process:   #--- m, i
@@ -166,10 +149,11 @@ def getOrbits(base: BaseState):
             #--- create orbits list from matching files
             for filename in matching_files:  
                 orbit = filename.split('_')[5]
-                if orbit not in base.orbits_to_process:
-                    base.orbits_to_process.append(orbit)
+                if orbit not in [of.orbit for of in orbits_to_process]:
+                    orbit_file = OrbitFiles(sat=sat, orbit=orbit)
+                    orbits_to_process.append(orbit_file)
     
-    return
+    return orbits_to_process
 
 #-----------------------------------------------------
 
@@ -216,16 +200,16 @@ def setSatellitesAndBands(base: BaseState):
 
 #-----------------------------------------------------
 
-def gettingFilesFromOrbit(base, iter_state, sat, band, orbit):
+def gettingFilesFromOrbit(base, band, orbit_file):
 
-    iter_state.filepaths = [] #--- Initialize
+    orbit_file.filepaths = [] #--- Initialize
 
     prod_prefixes = base.band_params[band]['prod_prefixes']
 
     #--- create list of recent orbit files
-    band_dir = base.band_params[band]['band_dir'].replace('_replacewithsat_', sat)
+    band_dir = base.band_params[band]['band_dir'].replace('_replacewithsat_', orbit_file.sat)
     orbit_files_recent = [f for f in os.listdir(band_dir) if
-                        f[0:5] in prod_prefixes and '_' + orbit + '_' in f]
+                        f[0:5] in prod_prefixes and '_' + orbit_file.orbit + '_' in f]
     
     #--- count number of orbit files, warning if one of the bands has a different number
     #------ I bet there is a simpler way of doing this
@@ -237,16 +221,16 @@ def gettingFilesFromOrbit(base, iter_state, sat, band, orbit):
             orbit_not_ready = True
             break
         if orbit_not_ready:
-            logging.info(f"{sat} orbit {orbit} bands are not fully filled in yet, not processing")
+            logging.info(f"{orbit_file.sat} orbit {orbit_file.orbit} bands are not fully filled in yet, not processing")
             continue
         
         #--- logging the files used
-        iter_state.filepaths.extend(glob.glob(os.path.join(band_dir, prefix + '*_' + orbit + '_*')))
-        if not iter_state.filepaths:
+        orbit_file.filepaths.extend(glob.glob(os.path.join(band_dir, prefix + '*_' + orbit_file.orbit + '_*')))
+        if not orbit_file.filepaths:
             continue
         else: 
-            iter_state.filepaths.sort()  #--- sort to follow time order
-            first_file = os.path.basename(iter_state.filepaths[0])
+            orbit_file.filepaths.sort()  #--- sort to follow time order
+            first_file = os.path.basename(orbit_file.filepaths[0])
             match = re.search(r'd(\d{8})_t(\d{2})(\d{2})', first_file)
             if match:
                 date_str, hour, minute = match.groups()
@@ -255,47 +239,47 @@ def gettingFilesFromOrbit(base, iter_state, sat, band, orbit):
             else:
                 datetime_str = "Unknown datetime"
                 
-    if iter_state.filepaths:
-        logging.info(f"Processing {len(iter_state.filepaths)} VIIRS files for {sat} orbit {orbit} {band}-band at {datetime_str}")  
+    if orbit_file.filepaths:
+        logging.info(f"Processing {len(orbit_file.filepaths)} VIIRS files for {orbit_file.sat} orbit {orbit_file.orbit} {band}-band at {datetime_str}")  
     
     return
     
 #-----------------------------------------------------
 
-def grabbingViirsFiles(base, iter_state, sat, band, orbit):
+def grabbingViirsFiles(base, band, orbit_file):
 
-    iter_state.processing_dir = base.dtstamp_dir + sat + '_' + band + '_' + orbit + '/'
-    os.makedirs(iter_state.processing_dir)
-    iter_state.raw_files_dir = iter_state.processing_dir + 'raw_files/'
-    os.makedirs(iter_state.raw_files_dir)
+    orbit_file.processing_dir = base.dtstamp_dir + orbit_file.sat + '_' + band + '_' + orbit_file.orbit + '/'
+    os.makedirs(orbit_file.processing_dir)
+    orbit_file.raw_files_dir = orbit_file.processing_dir + 'raw_files/'
+    os.makedirs(orbit_file.raw_files_dir)
 
-    for filepath in iter_state.filepaths:
-        shutil.copy(filepath, iter_state.raw_files_dir) #--- copying the file
+    for filepath in orbit_file.filepaths:
+        shutil.copy(filepath, orbit_file.raw_files_dir) #--- copying the file
             
     return
     
 #-----------------------------------------------------
 
-def runningPolar2Grid(base, iter_state, sat, band, orbit):
+def runningPolar2Grid(base, band, orbit_file):
     #--- running the polar2grid package
     #------ this is the very core of the processing
         
-    print(base.log_prefix + 'Running p2g for ' + sat + ' ' + band + ' band ')
-    if os.listdir(iter_state.raw_files_dir):  #--- checks if directory is not empty
+    print(base.log_prefix + 'Running p2g for ' + orbit_file.sat + ' ' + band + ' band ')
+    if os.listdir(orbit_file.raw_files_dir):  #--- checks if directory is not empty
         p2g_status = subprocess.call(
-            ['bash', os.path.join(base.base_dir, f'call_p2g_{band}.sh'), iter_state.raw_files_dir],
-            cwd=iter_state.processing_dir
+            ['bash', os.path.join(base.base_dir, f'call_p2g_{band}.sh'), orbit_file.raw_files_dir],
+            cwd=orbit_file.processing_dir
         )
 
-        print(f"{base.log_prefix} Finished running p2g for {sat} (orbit {orbit}) {band} band with exit status {p2g_status}")
+        print(f"{base.log_prefix} Finished running p2g for {orbit_file.sat} (orbit {orbit_file.orbit}) {band} band with exit status {p2g_status}")
                 
     return
     
 #-----------------------------------------------------
 
-def checkForMissingData(base, iter_state, sat, band, orbit):
+def checkForMissingData(base, band, orbit_file):
     
-    raw_sat_name = base.raw_sat_names[sat]
+    raw_sat_name = base.raw_sat_names[orbit_file.sat]
 
     #--- check if channels are missing
     #------ there is definitely a simpler way of doing this
@@ -303,26 +287,26 @@ def checkForMissingData(base, iter_state, sat, band, orbit):
     ldm_file_tags = base.band_params[band]['ldm_file_tags']
     p2g_file_tags = list(ldm_file_tags.keys())
 
-    iter_state.missing_p2g_tags = []
+    orbit_file.missing_p2g_tags = []
     for p2g_tag in p2g_file_tags:
-        if len(glob.glob(iter_state.processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc')) == 0:
-            iter_state.missing_p2g_tags.append(p2g_tag)
+        if len(glob.glob(orbit_file.processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc')) == 0:
+            orbit_file.missing_p2g_tags.append(p2g_tag)
     #--- all files are missing tags, likely due to <10% grid coverage
-    if len(iter_state.missing_p2g_tags) == len(p2g_file_tags):
-        logging.info(f"P2G returned no files for {sat} orbit {orbit} {band}-band at {base.file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
+    if len(orbit_file.missing_p2g_tags) == len(p2g_file_tags):
+        logging.info(f"P2G returned no files for {orbit_file.sat} orbit {orbit_file.orbit} {band}-band at {base.file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
 
     #--- some files are missing tags, likely due to lack of sun
-    elif len(iter_state.missing_p2g_tags) > 0:
-        logging.info(f"P2G rejected {iter_state.missing_p2g_tags} for {sat} orbit {orbit} {band}-band at {base.file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
+    elif len(orbit_file.missing_p2g_tags) > 0:
+        logging.info(f"P2G rejected {orbit_file.missing_p2g_tags} for {orbit_file.sat} orbit {orbit_file.orbit} {band}-band at {base.file_dt.strftime('%Y-%m-%d %H:%M UTC')}")
     
     return
 
 #-----------------------------------------------------
 
-def nameAndFillFiles(base, iter_state, sat, band, orbit):
+def nameAndFillFiles(base, band, orbit_file):
     #--- for each file type, names properly and fills with gzip-compressed data
     
-    raw_sat_name = base.raw_sat_names[sat]
+    raw_sat_name = base.raw_sat_names[orbit_file.sat]
 
     ldm_file_tags = base.band_params[band]['ldm_file_tags']
     p2g_file_tags = list(ldm_file_tags.keys())
@@ -331,7 +315,7 @@ def nameAndFillFiles(base, iter_state, sat, band, orbit):
     file_count = 0
     for p2g_tag in p2g_file_tags:
         for filepath in glob.glob(
-                iter_state.processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc'):
+                orbit_file.processing_dir + 'SSEC_AII_' + raw_sat_name + '_viirs_' + p2g_tag + '*.nc'):
             filename = os.path.basename(filepath)
             filename_pieces = filename.split('_')
 
@@ -342,7 +326,7 @@ def nameAndFillFiles(base, iter_state, sat, band, orbit):
                             filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
                             filename_pieces[6][1:] + '.nc.gz')
 
-            if p2g_tag not in iter_state.missing_p2g_tags:
+            if p2g_tag not in orbit_file.missing_p2g_tags:
                 with open(filepath, 'rb') as f_in, gzip.open(base.final_dir + new_filename, 'wb') as f_out:
                     f_out.writelines(f_in)
                 file_count += 1 #--- counting files created
@@ -359,15 +343,15 @@ def nameAndFillFiles(base, iter_state, sat, band, orbit):
     
 #-----------------------------------------------------
 
-def removeTempFiles(iter_state):
+def removeTempFiles(orbit_file):
     # Leave the directory behind if files we don't expect exist (e.g. we didn't finish copy .nc files out)
-    num_h5_files = len(glob.glob(iter_state.raw_files_dir + '/*.h5'))
-    num_all_files = len(glob.glob(iter_state.raw_files_dir + '/*'))
+    num_h5_files = len(glob.glob(orbit_file.raw_files_dir + '/*.h5'))
+    num_all_files = len(glob.glob(orbit_file.raw_files_dir + '/*'))
     if (num_all_files - num_h5_files) == 0:
-        shutil.rmtree(iter_state.raw_files_dir)
+        shutil.rmtree(orbit_file.raw_files_dir)
 
-    if len(glob.glob(iter_state.processing_dir)) == 1: #--- only log file is left
-        shutil.rmtree(iter_state.processing_dir)
+    if len(glob.glob(orbit_file.processing_dir)) == 1: #--- only log file is left
+        shutil.rmtree(orbit_file.processing_dir)
 
     return
 
