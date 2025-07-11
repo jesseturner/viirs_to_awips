@@ -4,6 +4,7 @@
 #------ Cron job had issues with these not manually set
 export LANG=en_US.UTF-8
 export PATH=/usr/bin:/bin
+export ORGANIZATION="CIRA"
 
 #--- Set up logging
 mkdir -p /mnt/data1/jturner/cron_logs
