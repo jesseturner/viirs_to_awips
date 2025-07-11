@@ -8,9 +8,6 @@ echo "=== Run at $(date) ==="
 working_dir=/mnt/data1/jturner
 cd $working_dir
 
-today=$(date +%Y%m%d)
-error_time=$(date +%H%M%S)Z
-
 # Set lock while running
 lock="$working_dir/lock-viirs-to-awips"
 

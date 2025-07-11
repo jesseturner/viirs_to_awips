@@ -64,8 +64,8 @@ def setUpVariables(base: BaseState):
     base.base_dir = os.getcwd()
     base.bands_to_process = ['m', 'i']
     base.sats_to_process = ['NPP', 'J01', 'J02']
-    base.current_dt = datetime.now() #datetime(2025, 7, 1, 10, 33, 33)
-    base.file_dt = datetime.now() #datetime(2025, 7, 1, 10, 33, 33)
+    base.current_dt = datetime.now(datetime.timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
+    base.file_dt = datetime.now(datetime.timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
 
     return
 
@@ -141,7 +141,6 @@ def getOrbits(base: BaseState):
             #--- get files that match search term
             matching_files = [
                 os.path.basename(f) for f in glob.glob(os.path.join(band_dir, f"*{file_date_str}*"))
-                if file_date_str in f
             ]
             if not matching_files:
                 continue
