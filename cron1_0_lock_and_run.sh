@@ -1,14 +1,19 @@
 #!/bin/bash
 
-# Set up logging
+#--- Set up Python environment
+#------ Cron job had issues with these not manually set
+export LANG=en_US.UTF-8
+export PATH=/usr/bin:/bin
+
+#--- Set up logging
 mkdir -p /mnt/data1/jturner/cron_logs
 echo "=== Run at $(date) ==="
 
-# Set variables
+#--- Set variables
 working_dir=/mnt/data1/jturner
 cd $working_dir
 
-# Set lock while running
+#--- Set lock while running
 lock="$working_dir/lock-viirs-to-awips"
 
 if [ -e "$lock" ]; then
@@ -25,7 +30,7 @@ fi
 
 /bin/touch "$lock"
 
-# Main processing
+#--- Main processing
 /usr/bin/python3.11 $working_dir/cron1_1_process_viirs_to_awips.py
 /bin/bash $working_dir/cron1_2_move_files_to_ldm.sh
 /bin/mv $working_dir/viirs_awips/*.nc.gz $working_dir/to_ldm_recent/. 2> /dev/null

@@ -1,6 +1,6 @@
 #------ built to run on polarbear3 with python3
 
-from datetime import datetime
+from datetime import datetime, timezone
 import argparse, glob, gzip, logging, os, shutil, subprocess, re, sys
 from dataclasses import dataclass
 from pprint import pprint
@@ -64,8 +64,8 @@ def setUpVariables(base: BaseState):
     base.base_dir = os.getcwd()
     base.bands_to_process = ['m', 'i']
     base.sats_to_process = ['NPP', 'J01', 'J02']
-    base.current_dt = datetime.now(datetime.timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
-    base.file_dt = datetime.now(datetime.timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
+    base.current_dt = datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
+    base.file_dt = datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
 
     return
 
