@@ -40,7 +40,7 @@ def main(raw_args=None):
     parseArguments(raw_args, base)
     createTempAndOutputDir(base)
     setSatellitesAndBands(base)
-    pprint(base)
+    #pprint(base)
     orbits_to_process = getOrbits(base)
 
     for band in base.bands_to_process:
@@ -53,7 +53,7 @@ def main(raw_args=None):
             nameAndFillFiles(base, band, orbit_file)
             removeTempFiles(orbit_file)
 
-            pprint(orbit_file)
+            #pprint(orbit_file)
 
     finishAndClean(base)
     
