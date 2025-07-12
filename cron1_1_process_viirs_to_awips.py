@@ -47,11 +47,11 @@ def main(raw_args=None):
         for orbit_file in orbits_to_process:
 
             gettingFilesFromOrbit(base, band, orbit_file)
-            # grabbingViirsFiles(base, band, orbit_file)
-            # runningPolar2Grid(base, band, orbit_file)
-            # checkForMissingData(base, band, orbit_file)
-            # nameAndFillFiles(base, band, orbit_file)
-            # removeTempFiles(orbit_file)
+            grabbingViirsFiles(base, band, orbit_file)
+            runningPolar2Grid(base, band, orbit_file)
+            checkForMissingData(base, band, orbit_file)
+            nameAndFillFiles(base, band, orbit_file)
+            removeTempFiles(orbit_file)
 
             pprint(orbit_file)
 
