@@ -1,6 +1,6 @@
 #------ built to run on polarbear3 with python3
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import argparse, glob, gzip, logging, os, shutil, subprocess, re, sys
 from dataclasses import dataclass
 from pprint import pprint
@@ -47,11 +47,11 @@ def main(raw_args=None):
         for orbit_file in orbits_to_process:
 
             gettingFilesFromOrbit(base, band, orbit_file)
-            grabbingViirsFiles(base, band, orbit_file)
-            runningPolar2Grid(base, band, orbit_file)
-            checkForMissingData(base, band, orbit_file)
-            nameAndFillFiles(base, band, orbit_file)
-            removeTempFiles(orbit_file)
+            # grabbingViirsFiles(base, band, orbit_file)
+            # runningPolar2Grid(base, band, orbit_file)
+            # checkForMissingData(base, band, orbit_file)
+            # nameAndFillFiles(base, band, orbit_file)
+            # removeTempFiles(orbit_file)
 
             pprint(orbit_file)
 
@@ -96,7 +96,8 @@ def parseArguments(raw_args, base: BaseState):
 
     #--- No arguments
     if len(sys.argv) == 1:
-        logging.info(f"{base.log_prefix} Looking for data from {base.file_dt.strftime('%Y-%m-%d %H')}:00 UTC")
+        start_time = base.file_dt - timedelta(minutes=12)
+        logging.info(f"{base.log_prefix} Looking for data from {start_time.strftime('%Y-%m-%d %H:%M')} to {base.file_dt.strftime('%H:%M')} UTC")
 
     #--- Specified band
     if args.freq_band:
@@ -110,9 +111,11 @@ def parseArguments(raw_args, base: BaseState):
         #--- Depending on if hour is specified or not
         if len(args.file_date) == 10:  #--- format: YYYYMMDDhh
             base.file_dt = datetime.strptime(args.file_date, "%Y%m%d%H")
+            base.file_dt = base.file_dt.replace(tzinfo=timezone.utc)
             logging.info(f"{base.log_prefix} Looking for data from {base.file_dt.strftime('%Y-%m-%d %H')}:00 UTC")
         elif len(args.file_date) == 8:  #--- format: YYYYMMDD
             base.file_dt = datetime.strptime(args.file_date, "%Y%m%d")
+            base.file_dt = base.file_dt.replace(tzinfo=timezone.utc)
             logging.info(f"{base.log_prefix} Looking for all data from {base.file_dt.strftime('%Y-%m-%d')}")
         else:
             raise ValueError("file_date must be in YYYYMMDD or YYYYMMDDhh format")
@@ -133,15 +136,39 @@ def getOrbits(base: BaseState):
             band_dir = base.band_params[band]['band_dir'].replace('_replacewithsat_', sat)
 
             #--- create search term for files
-            if base.file_dt.hour == 0 and base.file_dt.second == 0: #--- if full day (YYYYMMDD) is provided in argument, do not include hour
-                file_date_str = f"d{base.file_dt.year}{base.file_dt.month:02d}{base.file_dt.day:02d}"
-            else:
-                file_date_str = f"d{base.file_dt.year}{base.file_dt.month:02d}{base.file_dt.day:02d}_t{base.file_dt.hour:02d}"
+            #------ this needs improvement, in case 00 hour is selected in argument
+            if base.file_dt.hour == 0 and base.file_dt.microsecond == 0: #--- if full day (YYYYMMDD) is provided in argument
+                file_date_start = datetime(base.file_dt.year, base.file_dt.month, base.file_dt.day, 0, 0, 0)
+                file_date_end = file_date_start + timedelta(days=1)
+
+            elif base.file_dt.hour != 0 and base.file_dt.microsecond == 0: #--- if hour is (YYYYMMDDhh) is provided in argument
+                file_date_start = base.file_dt
+                file_date_end = base.file_dt + timedelta(hours=1)
             
-            #--- get files that match search term
-            matching_files = [
-                os.path.basename(f) for f in glob.glob(os.path.join(band_dir, f"*{file_date_str}*"))
-            ]
+            elif base.file_dt.microsecond != 0:
+                file_date_start = base.file_dt - timedelta(minutes=12)
+                file_date_end = base.file_dt
+                
+            else:
+                logging.error(f'Improper time selection: {base.file_dt.strftime("%Y-%m-%d %H:%M")}')
+                exit(1)
+
+            #--- Avoiding offset datetime error
+            file_date_start = file_date_start.replace(tzinfo=timezone.utc)
+            file_date_end = file_date_end.replace(tzinfo=timezone.utc)
+            
+            #--- get files that match time range
+            matching_files = []
+            for f in os.listdir(band_dir):
+                match = re.search(r'd(\d{8})_t(\d{2})(\d{2})(\d{2})\d', f)
+                if match:
+                    date_str, hour, minute, second = match.groups()
+                    dt = datetime.strptime(f"{date_str}{hour}{minute}{second}", "%Y%m%d%H%M%S")
+                    dt = dt.replace(tzinfo=timezone.utc)
+
+                    if file_date_start <= dt <= file_date_end:
+                        matching_files.append(f)
+
             if not matching_files:
                 continue
 
