@@ -64,8 +64,8 @@ def setUpVariables(base: BaseState):
     base.base_dir = os.getcwd()
     base.bands_to_process = ['m', 'i']
     base.sats_to_process = ['NPP', 'J01', 'J02']
-    base.current_dt = datetime(2025, 7, 15, 6, 45, 1) #datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
-    base.file_dt = datetime(2025, 7, 15, 6, 45, 1) #datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
+    base.current_dt = datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
+    base.file_dt = datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
 
     return
 
