@@ -159,7 +159,6 @@ def getOrbits(base: BaseState):
             
             #--- get files that match time range
             matching_files = []
-            print(f"Band dir: {band_dir}")
             for f in os.listdir(band_dir):
                 match = re.search(r'd(\d{8})_t(\d{2})(\d{2})(\d{2})\d', f)
                 if match:
