@@ -64,8 +64,8 @@ def setUpVariables(base: BaseState):
     base.base_dir = os.getcwd()
     base.bands_to_process = ['m', 'i']
     base.sats_to_process = ['NPP', 'J01', 'J02']
-    base.current_dt = datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
-    base.file_dt = datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
+    base.current_dt = datetime(2025, 7, 15, 6, 45, 1) #datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
+    base.file_dt = datetime(2025, 7, 15, 6, 45, 1) #datetime.now(timezone.utc) # datetime(2025, 7, 11, 6, 33, 33)
 
     return
 
@@ -159,6 +159,7 @@ def getOrbits(base: BaseState):
             
             #--- get files that match time range
             matching_files = []
+            print(f"Band dir: {band_dir}")
             for f in os.listdir(band_dir):
                 match = re.search(r'd(\d{8})_t(\d{2})(\d{2})(\d{2})\d', f)
                 if match:
