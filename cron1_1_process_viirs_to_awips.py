@@ -86,7 +86,7 @@ def startLogging(base: BaseState):
 def parseArguments(raw_args, base: BaseState):
 
     #--- arguments are in the form of a list of strings, i.e. ['-d', '20250611']
-    parser = argparse.ArgumentParser(description='Process incoming data from /mnt/viirs/WI-CONUS/NPP for AWIPS ingestion')
+    parser = argparse.ArgumentParser(description='Process incoming data from /mnt/jpssnas9/WI-CONUS/NPP for AWIPS ingestion')
     parser.add_argument('-f', '--freq-band', type=str,
                         help='Only process the files for the indicated band groupings (valid inputs are "i" and "m"')
     parser.add_argument('-d', '--file-date', type=str,
@@ -207,13 +207,13 @@ def setSatellitesAndBands(base: BaseState):
     #--- set up dictionaries for each band
     base.band_params = {
         'm': {
-            'band_dir': f"/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-MBand/{base.file_dt.year}/{base.file_dt.timetuple().tm_yday}/",
+            'band_dir': f"/mnt/jpssnas9/WI-CONUS/_replacewithsat_/SDR-MBand/{base.file_dt.year}/{base.file_dt.timetuple().tm_yday}/",
             'prod_prefixes': ['GMTCO'] + ['SV' + tag for tag in list(m_ldm_file_tags.values())],
             'ldm_file_tags': m_ldm_file_tags,
             'output_prod_name': 'VIIRS'
         },
         'i': {
-            'band_dir': f"/mnt/viirs/WI-CONUS/_replacewithsat_/SDR-IBand/{base.file_dt.year}/{base.file_dt.timetuple().tm_yday}/",
+            'band_dir': f"/mnt/jpssnas9/WI-CONUS/_replacewithsat_/SDR-IBand/{base.file_dt.year}/{base.file_dt.timetuple().tm_yday}/",
             'prod_prefixes': ['GITCO'] + ['SV' + tag for tag in list(i_ldm_file_tags.values())],
             'ldm_file_tags': i_ldm_file_tags,
             'output_prod_name': 'VIIRS'
