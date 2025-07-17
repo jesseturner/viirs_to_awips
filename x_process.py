@@ -1,5 +1,5 @@
 from datetime import datetime
-import re, os, shutil
+import re, os, shutil, subprocess, sys, glob, gzip
 
 
 class FileGrabber:
@@ -58,17 +58,86 @@ class FileGrabber:
             #--- Only create directories once
             if (sat, band, orbit) not in created_dirs:
                 os.makedirs(raw_files_dir, exist_ok=True)
-                created_dirs.add((sat, band, orbit))
+                created_dirs.add(processing_dir)
             
             shutil.copy(f, raw_files_dir)
+        
+        return created_dirs
 
+class Polar2Grid_Runner:
+    def __init__(self, data_dirs: set):
+        for path in data_dirs:
+            if not os.path.exists(path):
+                print(f"[ERROR] Path does not exist: {path}")
+                sys.exit(1)
+        self.data_dirs = data_dirs
+
+    def run_p2g(self):
+        for data_dir in list(self.data_dirs):
+            
+            raw_files_dir = os.path.join("/mnt/data1/jturner/", data_dir, "raw_files/")
+            if re.search(r"MBand", data_dir): band = 'm'
+            if re.search(r"IBand", data_dir): band = 'i'
+
+            if os.listdir(raw_files_dir):  #--- checks if directory is not empty
+                p2g_status = subprocess.call(
+                    ['bash', os.path.join(os.getcwd(), f'call_p2g_{band}.sh'), raw_files_dir],
+                    cwd=data_dir
+                )
+            else: 
+                print(f"[ERROR] No files in : {raw_files_dir}")
+                continue
+
+        return p2g_status
     
+    def name_and_move_files(self, output_dir: str):
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
-# start_time = datetime(2025, 7, 17, 5, 0, 0)
-# end_time = datetime(2025, 7, 17, 5, 30, 0)
+        for data_dir in list(self.data_dirs):
+        
+            if re.search(r"MBand", data_dir): 
+                bands = {'m08', 'm10', 'm11', 'm12', 'm13', 'm14', 'm15', 'm16'}
+            if re.search(r"IBand", data_dir): 
+                bands = {'i01', 'i02', 'i03', 'i04', 'i05'}
 
-# selector = FileGrabber(start_time, end_time)
-# matching_files = selector.get_files_for_valid_orbits()
+            if re.search(r"NPP", data_dir): sat_name = 'npp'
+            if re.search(r"J01", data_dir): sat_name = 'noaa20'
+            if re.search(r"J02", data_dir): sat_name = 'noaa21'
 
-# selector.copy_files_locally(matching_files)
+            for band in bands:
+                for filepath in glob.glob(
+                        data_dir + 'SSEC_AII_' + sat_name + '_viirs_' + band + '*.nc'):
+                    filename = os.path.basename(filepath)
+                    filename_pieces = filename.split('_')
 
+                    # polar2grid default is SSEC_AII_[raw_sat_name]_viirs_m##_LCC_Tttt_yyyymmdd_hhmm.nc
+                    # desired output is RAMMB_ppppp_bbb_yyyymmdd_hhmm_ttt.nc.gz
+                    new_filename = ('RAMMB_VIIRS' + '_' + band.upper() + '_' +
+                                    filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
+                                    filename_pieces[6][1:] + '.nc.gz')
+
+                    with open(filepath, 'rb') as f_in, gzip.open(output_dir + new_filename, 'wb') as f_out:
+                        f_out.writelines(f_in)
+
+            if os.listdir(output_dir):
+                shutil.rmtree(data_dir)
+            
+
+
+
+
+start_time = datetime(2025, 7, 17, 6, 0, 0)
+end_time = datetime(2025, 7, 17, 6, 30, 0)
+
+selector = FileGrabber(start_time, end_time)
+matching_files = selector.get_files_for_valid_orbits()
+
+data_dirs = selector.copy_files_locally(matching_files)
+
+p2g = Polar2Grid_Runner(data_dirs)
+
+status = p2g.run_p2g()
+print(status)
+
+p2g.name_and_move_files("/mnt/data1/jturner/viirs_awips_x/")
