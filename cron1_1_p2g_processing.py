@@ -3,7 +3,7 @@ from p2g_processing_utils import TimeWindowSelector, FileGrabber, Polar2Grid_Run
 tw1 = TimeWindowSelector(mode='current')
 
 start_time, end_time = tw1.get_window()
-print(f"Searching for data from {start_time.strftime('/%Y-%m-%d, %H:%M:%S')} to {end_time.strftime('/%Y-%m-%d, %H:%M:%S')}.")
+print(f"Searching for data from {start_time.strftime('%Y-%m-%d, %H:%M:%S')} to {end_time.strftime('%H:%M:%S')}.")
 
 selector = FileGrabber(start_time, end_time)
 matching_files = selector.get_files_for_valid_orbits()
