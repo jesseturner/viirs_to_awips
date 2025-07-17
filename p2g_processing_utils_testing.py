@@ -1,4 +1,4 @@
-from x_process import TimeWindowSelector, FileGrabber, Polar2Grid_Runner
+from p2g_processing_utils import TimeWindowSelector, FileGrabber, Polar2Grid_Runner
 
 # tw1 = TimeWindowSelector(mode='current')
 tw1 = TimeWindowSelector(mode='hour', target_date='2025-07-17', hour=6)
@@ -16,4 +16,4 @@ p2g = Polar2Grid_Runner(data_dirs)
 status = p2g.run_p2g()
 print(status)
 
-p2g.name_and_move_files("/mnt/data1/jturner/viirs_awips_x/")
+p2g.name_and_move_files("/mnt/data1/jturner/viirs_awips/")
