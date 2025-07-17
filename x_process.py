@@ -115,6 +115,7 @@ class Polar2Grid_Runner:
         self.data_dirs = data_dirs
 
     def run_p2g(self):
+        p2g_status = "Did not run P2G."
         for data_dir in list(self.data_dirs):
             
             raw_files_dir = os.path.join("/mnt/data1/jturner/", data_dir, "raw_files/")
@@ -165,21 +166,3 @@ class Polar2Grid_Runner:
             if os.listdir(output_dir):
                 shutil.rmtree(data_dir)
             
-
-
-
-
-start_time = datetime(2025, 7, 17, 6, 0, 0)
-end_time = datetime(2025, 7, 17, 6, 30, 0)
-
-selector = FileGrabber(start_time, end_time)
-matching_files = selector.get_files_for_valid_orbits()
-
-data_dirs = selector.copy_files_locally(matching_files)
-
-p2g = Polar2Grid_Runner(data_dirs)
-
-status = p2g.run_p2g()
-print(status)
-
-p2g.name_and_move_files("/mnt/data1/jturner/viirs_awips_x/")
