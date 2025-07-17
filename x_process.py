@@ -1,6 +1,48 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import re, os, shutil, subprocess, sys, glob, gzip
 
+class TimeWindowSelector:
+    def __init__(self, mode='current', target_date=None, hour=None, duration_minutes=15):
+        """
+        Args:
+            mode (str): 'current', 'hour', or 'day'
+            target_date (str or datetime): e.g., '2025-07-17' or datetime object
+            hour (int): for mode='hour', 0-23
+            duration_minutes (int): only used for mode='current'
+        """
+        self.mode = mode.lower()
+        if target_date: 
+            self.target_date = datetime.strptime(target_date, "%Y-%m-%d")
+        else: self.target_date = datetime.now()
+        self.hour = hour
+        self.duration_minutes = duration_minutes
+
+        self.datetime_start, self.datetime_end = self._calculate_window()
+
+    def _calculate_window(self):
+        now = datetime.now()
+
+        if self.mode == 'current':
+            return now - timedelta(minutes=self.duration_minutes), now
+
+        elif self.mode == 'hour':
+            if self.hour is None:
+                raise ValueError("Hour must be provided for mode='hour'")
+            start = self.target_date.replace(hour=self.hour, minute=0, second=0, microsecond=0)
+            end = start + timedelta(hours=1)
+            return start, end
+
+        elif self.mode == 'day':
+            start = self.target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end = start + timedelta(days=1)
+            return start, end
+
+        else:
+            raise ValueError("Mode must be 'current', 'hour', or 'day'")
+
+    def get_window(self):
+        return self.datetime_start, self.datetime_end
+    
 
 class FileGrabber:
     def __init__(self, start_time: datetime, end_time: datetime):

@@ -1,5 +1,5 @@
 The main processing runs every 9 minutes (cron1): 
-- checks for new viirs files in the last 30 minutes (subject to change)
+- checks for new viirs files in the last 12 minutes
 - processes viirs files and uses Polar2Grid to output AWIPS files
 - moves to LDM
 
