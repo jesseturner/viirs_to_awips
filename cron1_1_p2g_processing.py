@@ -1,6 +1,8 @@
 from p2g_processing_utils import TimeWindowSelector, FileGrabber, Polar2Grid_Runner
+from datetime import datetime
 
 #tw1 = TimeWindowSelector(mode='current')
+current_date = datetime.now().strftime('%Y-%m-%d')
 tw1 = TimeWindowSelector(mode='day', target_date='2025-07-18')
 
 start_time, end_time = tw1.get_window()
