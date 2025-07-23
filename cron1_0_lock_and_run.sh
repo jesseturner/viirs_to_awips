@@ -32,6 +32,7 @@ fi
 /bin/touch "$lock"
 
 #--- Main processing
+#/usr/bin/python3.11 $working_dir/p2g_processing_utils_testing.py
 /usr/bin/python3.11 $working_dir/cron1_1_p2g_processing.py
 /bin/bash $working_dir/cron1_2_move_files_to_ldm.sh
 /bin/mv $working_dir/viirs_awips/*.nc.gz $working_dir/to_ldm_recent/. 2> /dev/null

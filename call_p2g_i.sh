@@ -11,3 +11,10 @@
     --grid-configs /mnt/data1/jturner/niznik_grids.conf \
     --tiles 10 14 \
     --filter-day-products 0 \
+    --grid-coverage 0.0001 \
+
+#--- None of these worked to get I01, I02, I03 at night
+    # --check-categories False \
+    # --no-check-categories \
+    # --sza-threshold 180 \
+    # --filter-night-products 0 \
