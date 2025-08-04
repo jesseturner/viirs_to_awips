@@ -1,6 +1,10 @@
 #--- Run with: 
 #--- viirs_to_awips conda env
 #--- nohup python -u ./watch_for_viirs.py >> /mnt/data1/jturner/watch_for_viirs.log 2>&1 &
+
+#------ New version, making sure conda env is fine
+#--- nohup bash -c "source ~/miniconda3/etc/profile.d/conda.sh && conda activate viirs_to_awips && python -u ./watch_for_viirs.py" >> /mnt/data1/jturner/watch_for_viirs.log 2>&1 &
+
 #--- pkill -f watch_for_viirs.py
 
 import os
