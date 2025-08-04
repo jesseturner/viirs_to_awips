@@ -6,7 +6,8 @@
 import os
 import time
 from datetime import datetime
-from watchdog.observers import Observer
+#from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
 
 BASE_PATHS = [
@@ -15,7 +16,7 @@ BASE_PATHS = [
     "/mnt/jpssnas9/WI-CONUS/J02/SDR-IBand/{year}/{jday}",
     "/mnt/jpssnas9/WI-CONUS/J02/SDR-MBand/{year}/{jday}",
     "/mnt/jpssnas9/WI-CONUS/NPP/SDR-IBand/{year}/{jday}",
-    "/mnt/jpssnas9/WI-CONUS/NPP/SDR-MBand/{year}/{jday}",
+    "/mnt/jpssnas9/WI-CONUS/NPP/SDR-MBand/{year}/{jday}"
 ]
 
 def get_watch_dirs():
