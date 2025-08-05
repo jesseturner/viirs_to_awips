@@ -4,14 +4,22 @@ import xarray as xr
 import numpy as np
 import io
 
-file = "to_ldm_recent/RAMMB_VIIRS_I05_20250730_0703_022.nc.gz"
+file_dropout = "to_ldm_recent/RAMMB_VIIRS_I05_20250805_0651_011.nc.gz"
+file_complete = "to_ldm_recent/RAMMB_VIIRS_I05_20250805_0832_010.nc.gz"
+file_ldm = "ldm_file/RAMMB_VIIRS_I05_20250805_0651_012.nc.gz"
 
-with gzip.open(file, 'rb') as f:
-    uncompressed = f.read()
+def open_file(file):
+    with gzip.open(file, 'rb') as f:
+        uncompressed = f.read()
+    ds = xr.open_dataset(io.BytesIO(uncompressed))
+    return ds
 
-ds = xr.open_dataset(io.BytesIO(uncompressed))
+ds_dropout = open_file(file_dropout)
+ds_complete = open_file(file_complete)
+ds_ldm = open_file(file_ldm)
 
-for var in ds.data_vars:
-    data = ds[var].values
-    nan_ratio = np.isnan(data).sum() / data.size
-    print(f"{var}: {nan_ratio*100:.2f}% NaNs")
+print(ds_dropout.data.values)
+
+print(ds_complete.data.values)
+
+print(ds_ldm.data.values)
