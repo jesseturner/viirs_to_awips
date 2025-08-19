@@ -161,7 +161,7 @@ def run_p2g(status):
     return status
 
 def name_and_move_files(status):
-    print(f"Naming and moving files...")
+    print("Naming and moving files...")
     output_dir = "2_viirs_awips_format/"
     orbit_dir = "1_viirs_for_p2g/"
     if not os.path.exists(output_dir):
@@ -174,6 +174,9 @@ def name_and_move_files(status):
             search_path = os.path.join(orbit_dir, data_dir, f'SSEC_AII_{sat_name}_viirs_{band}*.nc')
             for filepath in glob.glob(search_path):
                 _create_awips_file(filepath, band, output_dir)
+
+        if os.listdir(output_dir):
+            shutil.rmtree(os.path.join(orbit_dir, data_dir))
                 
     return status
 
@@ -209,3 +212,26 @@ def calc_total_run_time(status):
     minutes = round(diff.total_seconds() / 60, 2)
     status['run_time'] = f'{minutes} minutes'
     return status
+
+def move_files_to_ldm(status):
+    print("Moving files to LDM...")
+    storage_dir = "3_to_ldm_recent"
+    os.makedirs(storage_dir, exist_ok=True)
+
+    working_dir = os.getcwd()
+    subprocess.call(['bash', os.path.join(working_dir, 'move_files_to_ldm.sh')])
+    return status
+
+def clean_up_to_ldm_recent(status):
+    print("Cleaning to_ldm_recent directory...")
+    storage_dir = "3_to_ldm_recent"
+    
+    #--- Delete any file older than 7 days
+    for filename in os.listdir(storage_dir):
+        filename_date_str = filename[16:24]
+        file_date = datetime.strptime(filename_date_str, "%Y%m%d")
+        is_file_outdated = file_date < datetime.today() - timedelta(days=7)
+        if is_file_outdated:
+            os.remove(os.path.join(storage_dir,filename))
+    return status
+        

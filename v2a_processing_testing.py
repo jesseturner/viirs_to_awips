@@ -9,8 +9,7 @@ status = v2a.create_logging(status)
 #--- Maybe lock here
 
 current_date = datetime.now().strftime('%Y-%m-%d')
-current_hour = datetime.now().strftime('%H')
-status = v2a.time_window_selector(status, mode='hour', hour=current_hour, target_date=current_date)
+status = v2a.time_window_selector(status, mode='hour', hour=18, target_date=current_date)
 pp.pprint(v2a.summarize_lists_for_pprint(status))
 
 status = v2a.get_files_for_valid_orbits(status)
