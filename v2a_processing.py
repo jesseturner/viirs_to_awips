@@ -13,6 +13,12 @@ status = v2a.time_window_selector(status, mode='hour', hour=17, target_date=curr
 
 status = v2a.get_files_for_valid_orbits(status)
 
-status = v2a.copy_files_locally(status)
+#status = v2a.copy_files_locally(status)
+
+#status = v2a.run_p2g(status)
+
+status = v2a.name_and_move_files(status)
+
+status = v2a.calc_total_run_time(status)
 
 pp.pprint(v2a.summarize_lists_for_pprint(status))

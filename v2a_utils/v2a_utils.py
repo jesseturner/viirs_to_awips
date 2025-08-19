@@ -1,4 +1,4 @@
-import os, re, shutil, subprocess
+import os, re, shutil, subprocess, glob, gzip
 from datetime import datetime, timedelta
 
 def create_env():
@@ -7,7 +7,7 @@ def create_env():
     os.environ['ORGANIZATION'] = 'CIRA'
 
     status = {}
-    status['status'] = 'running'
+    status['run_time'] = datetime.now()
     return status
 
 def create_logging(status):
@@ -32,7 +32,7 @@ def time_window_selector(status, mode='current', target_date=None, hour=None, du
     else: target_date = datetime.now()
     
     status['start_time'], status['end_time'] = _calculate_window(mode, target_date, hour, duration_minutes)
-
+    
     print(f"Looking for data between {status['start_time'].strftime('%Y-%m-%d %H:%M UTC')} and {status['end_time'].strftime('%Y-%m-%d %H:%M UTC')}")    
     return status
 
@@ -117,7 +117,7 @@ def copy_files_locally(status):
         sat, band, orbit = _get_info_viirs_filename(f)
         sat_orbits.add(f'{sat}_{orbit}')
 
-        processing_dir = f"{current_dtstamp}_{sat}_{band}_{orbit}/"
+        processing_dir = f"1_viirs_for_p2g/{current_dtstamp}_{sat}_{band}_{orbit}/"
         raw_files_dir = os.path.join(processing_dir, 'raw_files')
 
         #--- Only create directories once
@@ -138,21 +138,74 @@ def _get_info_viirs_filename(filename):
     return sat, band, orbit
 
 
-# def run_p2g(status):
-#     p2g_status = "Did not run P2G."
-#     for data_dir in list(self.data_dirs):
+def run_p2g(status):
+    print(f"Running polar2grid...")
+    p2g_status = "Did not run P2G."
+    working_dir = os.getcwd()
+    orbit_dir = "1_viirs_for_p2g/"
+    for data_dir in os.listdir(orbit_dir):
         
-#         raw_files_dir = os.path.join("/mnt/data1/jturner/", data_dir, "raw_files/")
-#         if re.search(r"MBand", data_dir): band = 'm'
-#         if re.search(r"IBand", data_dir): band = 'i'
+        raw_files_dir = os.path.join(working_dir, orbit_dir, data_dir, "raw_files/")
+        if re.search(r"MBand", data_dir): band = 'm'
+        if re.search(r"IBand", data_dir): band = 'i'
 
-#         if os.listdir(raw_files_dir):  #--- checks if directory is not empty
-#             p2g_status = subprocess.call(
-#                 ['bash', os.path.join(os.getcwd(), f'call_p2g_{band}.sh'), raw_files_dir],
-#                 cwd=data_dir
-#             )
-#         else: 
-#             print(f"[ERROR] No files in : {raw_files_dir}")
-#             continue
+        if os.listdir(raw_files_dir):  #--- checks if directory is not empty
+            p2g_status = subprocess.call(
+                ['bash', os.path.join(working_dir, f'call_p2g_{band}.sh'), raw_files_dir],
+                cwd=os.path.join(working_dir, orbit_dir, data_dir)
+            )
+        else: 
+            print(f"[ERROR] No files in : {raw_files_dir}")
+            continue
 
-#     return p2g_status
+    return status
+
+def name_and_move_files(status):
+    print(f"Naming and moving files...")
+    output_dir = "2_viirs_awips_format/"
+    orbit_dir = "1_viirs_for_p2g/"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    for data_dir in os.listdir(orbit_dir):    
+        bands, sat_name = _get_bands_and_sat_name(data_dir)
+
+        for band in bands:
+            search_path = os.path.join(orbit_dir, data_dir, f'SSEC_AII_{sat_name}_viirs_{band}*.nc')
+            for filepath in glob.glob(search_path):
+                _create_awips_file(filepath, band, output_dir)
+                
+    return status
+
+def _get_bands_and_sat_name(data_dir):
+    if re.search(r"MBand", data_dir): 
+        bands = {'m08', 'm10', 'm11', 'm12', 'm13', 'm14', 'm15', 'm16'}
+    if re.search(r"IBand", data_dir): 
+        bands = {'i01', 'i02', 'i03', 'i04', 'i05'}
+
+    if re.search(r"NPP", data_dir): sat_name = 'npp'
+    if re.search(r"J01", data_dir): sat_name = 'noaa20'
+    if re.search(r"J02", data_dir): sat_name = 'noaa21'
+
+    return bands, sat_name
+
+def _create_awips_file(filepath, band, output_dir):
+    filename = os.path.basename(filepath)
+    filename_pieces = filename.split('_')
+
+    # polar2grid default is SSEC_AII_[raw_sat_name]_viirs_m##_LCC_Tttt_yyyymmdd_hhmm.nc
+    # desired output is RAMMB_ppppp_bbb_yyyymmdd_hhmm_ttt.nc.gz
+    new_filename = ('RAMMB_VIIRS' + '_' + band.upper() + '_' +
+                    filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
+                    filename_pieces[6][1:] + '.nc.gz')
+
+    with open(filepath, 'rb') as f_in, gzip.open(output_dir + new_filename, 'wb') as f_out:
+        f_out.writelines(f_in)
+    return
+
+def calc_total_run_time(status):
+    curr_time = datetime.now()
+    diff = curr_time - status['run_time']
+    minutes = round(diff.total_seconds() / 60, 2)
+    status['run_time'] = f'{minutes} minutes'
+    return status
