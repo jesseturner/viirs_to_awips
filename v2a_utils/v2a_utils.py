@@ -38,9 +38,10 @@ def time_window_selector(status, mode='current', target_date=None, hour=None, du
 
 
 def _calculate_window(mode, target_date, hour, duration_minutes):
-    now = datetime.now()
-
     if mode == 'current':
+        now = datetime.now()
+        if hour: #--- option to select a certain hour and look back
+            now = now.replace(hour=hour, minute=0, second=0, microsecond=0)
         return now - timedelta(minutes=duration_minutes), now
 
     elif mode == 'hour':
@@ -58,9 +59,18 @@ def _calculate_window(mode, target_date, hour, duration_minutes):
     else:
         raise ValueError("Mode must be 'current', 'hour', or 'day'")
     
-def get_files_for_valid_orbits(status) -> list[str]:
+def get_orbits_by_timestamp(status):
     filenames = _get_all_filenames(status['start_time'])
-    orbit_ids = _get_valid_orbits(filenames, status['start_time'], status['end_time'])
+    orbit_ids = _get_orbits_by_filename_timestamp(filenames, status['start_time'], status['end_time'])
+    status['orbits'] = orbit_ids
+    status['filenames'] = [f for f in filenames if any(f"b{orb}" in f for orb in orbit_ids)]
+    
+    return status
+
+def get_orbits_by_mod_time(status):
+    filenames = _get_all_filenames(status['start_time'])
+    filenames_mod_time = _filter_filenames_by_mod_time(filenames, status)
+    orbit_ids = _get_orbits_by_filename_all(filenames_mod_time, status['start_time'], status['end_time'])
     status['orbits'] = orbit_ids
     status['filenames'] = [f for f in filenames if any(f"b{orb}" in f for orb in orbit_ids)]
     
@@ -75,10 +85,19 @@ def _get_all_filenames(start_time):
     for sat in sats_to_process:
         for band in bands_to_process:
             band_dir =  f"/mnt/jpssnas9/WI-CONUS/{sat}/SDR-{band}Band/{start_time.year}/{start_time.timetuple().tm_yday}/"
-            full_paths = [os.path.join(band_dir, fname) for fname in os.listdir(band_dir)]
-            filenames.extend(full_paths)
+            if os.listdir(band_dir):
+                full_paths = [os.path.join(band_dir, fname) for fname in os.listdir(band_dir)]
+                filenames.extend(full_paths)
 
     return filenames
+
+def _filter_filenames_by_mod_time(filenames, status):
+    filenames_mod_time = []
+    for f in filenames:
+        mod_time = datetime.fromtimestamp(os.path.getmtime(f))
+        if status['start_time'] <= mod_time <= status['end_time']:
+            filenames_mod_time.append(f)
+    return filenames_mod_time
 
 def _get_timestamp_and_orbit(filename: str):
     match = re.search(r"d(\d{8})_t(\d{6})\d?_.*_b(\d{5})_", filename)
@@ -89,12 +108,21 @@ def _get_timestamp_and_orbit(filename: str):
     
     return timestamp, orbit
 
-def _get_valid_orbits(filenames: list[str], start_time, end_time) -> set[str]:
+def _get_orbits_by_filename_timestamp(filenames: list[str], start_time, end_time) -> set[str]:
     orbits = set()
     for fname in filenames:
         ts, orb = _get_timestamp_and_orbit(fname)
         if ts and start_time <= ts <= end_time:
             orbits.add(orb)
+    
+    return orbits
+
+def _get_orbits_by_filename_all(filenames: list[str], start_time, end_time) -> set[str]:
+    orbits = set()
+    for fname in filenames:
+        orb = re.search(r"_b(\d{5})_", fname)
+        if orb:
+            orbits.add(orb.group(1))
     
     return orbits
 
