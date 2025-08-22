@@ -8,11 +8,12 @@ def create_env():
 
     status = {}
     status['run_time'] = datetime.now()
+    status['run_dir'] = "/mnt/data1/jturner"
     return status
 
 def create_logging(status):
     date = datetime.now().strftime("%Y-%m-%d %H:%M")
-    logging_dir = "/mnt/data1/jturner/v2a_logs"
+    logging_dir = os.path.join(status['run_dir'], "v2a_logs")
     os.makedirs(logging_dir, exist_ok=True)
     print(f"=== Run at {date} ===")
 
@@ -145,7 +146,7 @@ def copy_files_locally(status):
         sat, band, orbit = _get_info_viirs_filename(f)
         sat_orbits.add(f'{sat}_{orbit}')
 
-        processing_dir = f"1_viirs_for_p2g/{current_dtstamp}_{sat}_{band}_{orbit}/"
+        processing_dir = os.path.join(status['run_dir'], f"1_viirs_for_p2g/{current_dtstamp}_{sat}_{band}_{orbit}")
         raw_files_dir = os.path.join(processing_dir, 'raw_files')
 
         #--- Only create directories once
@@ -169,18 +170,17 @@ def _get_info_viirs_filename(filename):
 def run_p2g(status):
     print(f"Running polar2grid...")
     p2g_status = "Did not run P2G."
-    working_dir = "/mnt/data1/jturner"
-    orbit_dir = "1_viirs_for_p2g/"
-    for data_dir in os.listdir(os.path.join(working_dir, orbit_dir)):
+    orbit_dir = os.path.join(status['run_dir'], "1_viirs_for_p2g/")
+    for data_dir in os.listdir(orbit_dir):
         
-        raw_files_dir = os.path.join(working_dir, orbit_dir, data_dir, "raw_files/")
+        raw_files_dir = os.path.join(orbit_dir, data_dir, "raw_files/")
         if re.search(r"MBand", data_dir): band = 'm'
         if re.search(r"IBand", data_dir): band = 'i'
 
         if os.listdir(raw_files_dir):  #--- checks if directory is not empty
             p2g_status = subprocess.call(
-                ['bash', os.path.join(working_dir, f'call_p2g_{band}.sh'), raw_files_dir],
-                cwd=os.path.join(working_dir, orbit_dir, data_dir)
+                ['bash', os.path.join(status['run_dir'], f'call_p2g_{band}.sh'), raw_files_dir],
+                cwd=os.path.join(orbit_dir, data_dir)
             )
         else: 
             print(f"[ERROR] No files in : {raw_files_dir}")
@@ -190,22 +190,21 @@ def run_p2g(status):
 
 def name_and_move_files(status):
     print("Naming and moving files...")
-    working_dir = "/mnt/data1/jturner"
-    output_dir = "2_viirs_awips_format/"
-    orbit_dir = "1_viirs_for_p2g/"
+    output_dir = os.path.join(status['run_dir'], "2_viirs_awips_format/")
+    orbit_dir = os.path.join(status['run_dir'], "1_viirs_for_p2g/")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    for data_dir in os.listdir(os.path.join(working_dir, orbit_dir)):    
+    for data_dir in os.listdir(orbit_dir):    
         bands, sat_name = _get_bands_and_sat_name(data_dir)
 
         for band in bands:
-            search_path = os.path.join(working_dir, orbit_dir, data_dir, f'SSEC_AII_{sat_name}_viirs_{band}*.nc')
+            search_path = os.path.join(orbit_dir, data_dir, f'SSEC_AII_{sat_name}_viirs_{band}*.nc')
             for filepath in glob.glob(search_path):
                 _create_awips_file(filepath, band, output_dir)
 
-        if os.listdir(output_dir):
-            shutil.rmtree(os.path.join(working_dir, orbit_dir, data_dir))
+
+        shutil.rmtree(os.path.join(orbit_dir, data_dir))
                 
     return status
 
@@ -244,24 +243,22 @@ def calc_total_run_time(status):
 
 def move_files_to_ldm(status):
     print("Moving files to LDM...")
-    working_dir = "/mnt/data1/jturner"
-    storage_dir = "3_to_ldm_recent"
-    os.makedirs(os.path.join(working_dir, storage_dir), exist_ok=True)
+    storage_dir = os.path.join(status['run_dir'], "3_to_ldm_recent")
+    os.makedirs(storage_dir, exist_ok=True)
 
-    subprocess.call(['bash', os.path.join(working_dir, 'move_files_to_ldm.sh')])
+    subprocess.call(['bash', os.path.join(status['run_dir'], 'move_files_to_ldm.sh')])
     return status
 
 def clean_up_to_ldm_recent(status):
     print("Cleaning to_ldm_recent directory...")
-    working_dir = "/mnt/data1/jturner"
-    storage_dir = "3_to_ldm_recent"
+    storage_dir = os.path.join(status['run_dir'], "3_to_ldm_recent")
     
     #--- Delete any file older than 7 days
-    for filename in os.listdir(os.path.join(working_dir, storage_dir)):
+    for filename in os.listdir(storage_dir):
         filename_date_str = filename[16:24]
         file_date = datetime.strptime(filename_date_str, "%Y%m%d")
         is_file_outdated = file_date < datetime.today() - timedelta(days=7)
         if is_file_outdated:
-            os.remove(os.path.join(working_dir, storage_dir, filename))
+            os.remove(os.path.join(storage_dir, filename))
     return status
         

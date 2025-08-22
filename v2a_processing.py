@@ -10,7 +10,7 @@ status = v2a.create_logging(status)
 
 current_date = datetime.now().strftime('%Y-%m-%d')
 current_hour = datetime.now().hour
-status = v2a.time_window_selector(status, mode='current', duration_minutes=60)
+status = v2a.time_window_selector(status, mode='current', duration_minutes=60, hour=6) #remove hour
 pp.pprint(v2a.summarize_lists_for_pprint(status))
 
 status = v2a.get_orbits_by_mod_time(status)

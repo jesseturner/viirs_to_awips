@@ -10,14 +10,12 @@ status = v2a.create_logging(status)
 
 current_date = datetime.now().strftime('%Y-%m-%d')
 
-status = v2a.time_window_selector(status, mode='current', duration_minutes=60) #--- option to add hour to current
+status = v2a.time_window_selector(status, mode='current', duration_minutes=60, hour=6) #--- option to add hour to current
 
 # status = v2a.get_orbits_by_timestamp(status)
 # pp.pprint(v2a.summarize_lists_for_pprint(status))
 
 status = v2a.get_orbits_by_mod_time(status)
-pp.pprint(v2a.summarize_lists_for_pprint(status))
-
 
 # status = v2a.copy_files_locally(status)
 
