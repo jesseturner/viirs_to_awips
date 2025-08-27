@@ -10,23 +10,17 @@ status = v2a.create_logging(status)
 
 current_date = datetime.now().strftime('%Y-%m-%d')
 current_hour = datetime.now().hour
-status = v2a.time_window_selector(status, mode='current', duration_minutes=60)
-pp.pprint(v2a.summarize_lists_for_pprint(status))
+status = v2a.time_window_selector(status, mode='current', duration_minutes=24)
 
 status = v2a.get_orbits_by_mod_time(status)
-pp.pprint(v2a.summarize_lists_for_pprint(status))
 
 status = v2a.copy_files_locally(status)
-pp.pprint(v2a.summarize_lists_for_pprint(status))
 
 status = v2a.run_p2g(status)
-pp.pprint(v2a.summarize_lists_for_pprint(status))
 
 status = v2a.name_and_move_files(status)
-pp.pprint(v2a.summarize_lists_for_pprint(status))
 
 status = v2a.move_files_to_ldm(status)
-pp.pprint(v2a.summarize_lists_for_pprint(status))
 
 status = v2a.clean_up_to_ldm_recent(status)
 
