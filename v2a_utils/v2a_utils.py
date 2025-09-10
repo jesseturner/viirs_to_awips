@@ -33,6 +33,8 @@ def time_window_selector(status, mode='current', target_date=None, hour=None, du
     else: target_date = datetime.now()
     
     status['start_time'], status['end_time'] = _calculate_window(mode, target_date, hour, duration_minutes)
+
+    assert status['start_time'] < status['end_time'], f"Window start time ({status['start_time']}) is equal or later than end time ({status['end_time']})"
     
     print(f"Looking for data between {status['start_time'].strftime('%Y-%m-%d %H:%M UTC')} and {status['end_time'].strftime('%Y-%m-%d %H:%M UTC')}")    
     return status
@@ -168,10 +170,10 @@ def _get_info_viirs_filename(filename):
 
 
 def run_p2g(status):
-    print(f"Running polar2grid...")
-    p2g_status = "Did not run P2G."
+    p2g_status = ""
     orbit_dir = os.path.join(status['run_dir'], "1_viirs_for_p2g/")
     for data_dir in os.listdir(orbit_dir):
+        print(f"Running polar2grid for {data_dir}...")
         
         raw_files_dir = os.path.join(orbit_dir, data_dir, "raw_files/")
         if re.search(r"MBand", data_dir): band = 'm'
@@ -186,17 +188,22 @@ def run_p2g(status):
             print(f"[ERROR] No files in : {raw_files_dir}")
             continue
 
+    assert p2g_status == 0 or p2g_status == "", f"Polar2grid error: {p2g_status}"
+
     return status
 
 def name_and_move_files(status):
     print("Naming and moving files...")
     output_dir = os.path.join(status['run_dir'], "2_viirs_awips_format/")
     orbit_dir = os.path.join(status['run_dir'], "1_viirs_for_p2g/")
+    awips_timestamps = None
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    for data_dir in os.listdir(orbit_dir):    
+    for data_dir in os.listdir(orbit_dir): 
+        data_path = os.path.join(orbit_dir, data_dir)   
         bands, sat_name = _get_bands_and_sat_name(data_dir)
+        awips_timestamps = _get_awips_timestamps(data_path)
 
         for band in bands:
             search_path = os.path.join(orbit_dir, data_dir, f'SSEC_AII_{sat_name}_viirs_{band}*.nc')
@@ -205,7 +212,9 @@ def name_and_move_files(status):
 
 
         shutil.rmtree(os.path.join(orbit_dir, data_dir))
-                
+
+    status['awips_timestamps'] = awips_timestamps
+
     return status
 
 def _get_bands_and_sat_name(data_dir):
@@ -219,6 +228,19 @@ def _get_bands_and_sat_name(data_dir):
     if re.search(r"J02", data_dir): sat_name = 'noaa21'
 
     return bands, sat_name
+
+def _get_awips_timestamps(data_dir):
+    awips_timestamps = set()
+    
+    files = glob.glob(os.path.join(data_dir, "*.nc"))
+    pattern = re.compile(r'_(\d{4})\.nc$')
+    
+    for f in files:
+        match = pattern.search(f)
+        if match:
+            awips_timestamps.add(match.group(1))
+
+    return awips_timestamps
 
 def _create_awips_file(filepath, band, output_dir):
     filename = os.path.basename(filepath)
