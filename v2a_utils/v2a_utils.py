@@ -15,7 +15,7 @@ def create_logging(status):
     date = datetime.now().strftime("%Y-%m-%d %H:%M")
     logging_dir = os.path.join(status['run_dir'], "v2a_logs")
     os.makedirs(logging_dir, exist_ok=True)
-    print(f"=== Run at {date} ===")
+    print(f"=== Run at {date} ===", flush=True)
 
     return status
 
@@ -35,7 +35,7 @@ def time_window_selector(status, target_datetime_str=None, duration_minutes=15):
 
     assert status['start_time'] < status['end_time'], f"Window start time ({status['start_time']}) is equal or later than end time ({status['end_time']})"
     
-    print(f"Looking for data between {status['start_time'].strftime('%Y-%m-%d %H:%M UTC')} and {status['end_time'].strftime('%Y-%m-%d %H:%M UTC')}")    
+    print(f"Looking for data between {status['start_time'].strftime('%Y-%m-%d %H:%M UTC')} and {status['end_time'].strftime('%Y-%m-%d %H:%M UTC')}", flush=True)    
     return status
     
 def get_orbits_by_timestamp(status):
@@ -115,7 +115,7 @@ def summarize_lists_for_pprint(d, max_len=10):
     return summarized
 
 def copy_files_locally(status):
-    print(f"Copying {len(status['filenames'])} files locally...")
+    print(f"Copying {len(status['filenames'])} files locally...", flush=True)
     current_dtstamp = datetime.now().strftime('d%Y%m%dt%H%M%S')
     created_dirs = set()
     sat_orbits = set()
@@ -149,7 +149,7 @@ def run_p2g(status):
     p2g_status = ""
     orbit_dir = os.path.join(status['run_dir'], "1_viirs_for_p2g/")
     for data_dir in os.listdir(orbit_dir):
-        print(f"Running polar2grid for {data_dir}...")
+        print(f"Running polar2grid for {data_dir}...", flush=True)
         
         raw_files_dir = os.path.join(orbit_dir, data_dir, "raw_files/")
         if re.search(r"MBand", data_dir): band = 'm'
@@ -161,7 +161,7 @@ def run_p2g(status):
                 cwd=os.path.join(orbit_dir, data_dir)
             )
         else: 
-            print(f"[ERROR] No files in : {raw_files_dir}")
+            print(f"[ERROR] No files in : {raw_files_dir}", flush=True)
             continue
 
     assert p2g_status == 0 or p2g_status == "", f"Polar2grid error: {p2g_status}"
@@ -169,7 +169,7 @@ def run_p2g(status):
     return status
 
 def name_and_move_files(status):
-    print("Naming and moving files...")
+    print("Naming and moving files...", flush=True)
     output_dir = os.path.join(status['run_dir'], "2_viirs_awips_format/")
     orbit_dir = os.path.join(status['run_dir'], "1_viirs_for_p2g/")
     awips_timestamps = set()
@@ -230,7 +230,6 @@ def _create_awips_file(filepath, band, output_dir):
 
     with open(filepath, 'rb') as f_in, gzip.open(output_path, 'wb') as f_out:
         shutil.copyfileobj(f_in, f_out)
-
     return
 
 def calc_total_run_time(status):
@@ -241,7 +240,7 @@ def calc_total_run_time(status):
     return status
 
 def move_files_to_ldm(status):
-    print("Moving files to LDM...")
+    print("Moving files to LDM...", flush=True)
     storage_dir = os.path.join(status['run_dir'], "3_to_ldm_recent")
     os.makedirs(storage_dir, exist_ok=True)
 
@@ -249,7 +248,7 @@ def move_files_to_ldm(status):
     return status
 
 def clean_up_to_ldm_recent(status):
-    print("Cleaning to_ldm_recent directory...")
+    print("Cleaning to_ldm_recent directory...", flush=True)
     storage_dir = os.path.join(status['run_dir'], "3_to_ldm_recent")
     
     #--- Delete any file older than 7 days
