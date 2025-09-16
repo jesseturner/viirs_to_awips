@@ -226,8 +226,11 @@ def _create_awips_file(filepath, band, output_dir):
                     filename_pieces[7] + '_' + filename_pieces[8][:-3] + '_' +
                     filename_pieces[6][1:] + '.nc.gz')
 
-    with open(filepath, 'rb') as f_in, gzip.open(output_dir + new_filename, 'wb') as f_out:
-        f_out.writelines(f_in)
+    output_path = os.path.join(output_dir, new_filename)
+
+    with open(filepath, 'rb') as f_in, gzip.open(output_path, 'wb') as f_out:
+        f_out.write(f_in.read())
+
     return
 
 def calc_total_run_time(status):
