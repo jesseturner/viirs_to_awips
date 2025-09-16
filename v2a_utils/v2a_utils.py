@@ -229,7 +229,7 @@ def _create_awips_file(filepath, band, output_dir):
     output_path = os.path.join(output_dir, new_filename)
 
     with open(filepath, 'rb') as f_in, gzip.open(output_path, 'wb') as f_out:
-        f_out.write(f_in.read())
+        shutil.copyfileobj(f_in, f_out)
 
     return
 
