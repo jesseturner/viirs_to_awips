@@ -19,48 +19,24 @@ def create_logging(status):
 
     return status
 
-def time_window_selector(status, mode='current', target_date=None, hour=None, duration_minutes=15):
+def time_window_selector(status, target_datetime_str=None, duration_minutes=15):
     """
-    Args:
-        mode (str): 'current', 'hour', or 'day'
-        target_date (str or datetime): e.g., '2025-07-17' or datetime object
-        hour (int): for mode='hour', 0-23
-        duration_minutes (int): only used for mode='current'
+    Args: 
+        target_datetime_str (str): Date string in format "YYYY-MM-DD HH:MM".
+        defaults to current datetime. 
     """
-    mode = mode.lower()
-    if target_date: 
-        target_date = datetime.strptime(target_date, "%Y-%m-%d")
-    else: target_date = datetime.now()
+    target_datetime = datetime.now()
     
-    status['start_time'], status['end_time'] = _calculate_window(mode, target_date, hour, duration_minutes)
+    if target_datetime_str:
+        target_datetime = datetime.strptime(target_datetime_str, "%Y-%m-%d %H:%M")           
+    
+    status['start_time'] = target_datetime - timedelta(minutes=duration_minutes)
+    status['end_time'] = target_datetime
 
     assert status['start_time'] < status['end_time'], f"Window start time ({status['start_time']}) is equal or later than end time ({status['end_time']})"
     
     print(f"Looking for data between {status['start_time'].strftime('%Y-%m-%d %H:%M UTC')} and {status['end_time'].strftime('%Y-%m-%d %H:%M UTC')}")    
     return status
-
-
-def _calculate_window(mode, target_date, hour, duration_minutes):
-    if mode == 'current':
-        now = datetime.now()
-        if hour: #--- option to select a certain hour and look back
-            now = now.replace(hour=hour, minute=0, second=0, microsecond=0)
-        return now - timedelta(minutes=duration_minutes), now
-
-    elif mode == 'hour':
-        if hour is None:
-            raise ValueError("Hour must be provided for mode='hour'")
-        start = target_date.replace(hour=hour, minute=0, second=0, microsecond=0)
-        end = start + timedelta(hours=1)
-        return start, end
-
-    elif mode == 'day':
-        start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end = start + timedelta(days=1)
-        return start, end
-
-    else:
-        raise ValueError("Mode must be 'current', 'hour', or 'day'")
     
 def get_orbits_by_timestamp(status):
     filenames = _get_all_filenames(status['start_time'])
