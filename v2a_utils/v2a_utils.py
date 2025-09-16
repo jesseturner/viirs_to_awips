@@ -172,14 +172,14 @@ def name_and_move_files(status):
     print("Naming and moving files...")
     output_dir = os.path.join(status['run_dir'], "2_viirs_awips_format/")
     orbit_dir = os.path.join(status['run_dir'], "1_viirs_for_p2g/")
-    awips_timestamps = None
+    awips_timestamps = set()
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     for data_dir in os.listdir(orbit_dir): 
         data_path = os.path.join(orbit_dir, data_dir)   
         bands, sat_name = _get_bands_and_sat_name(data_dir)
-        awips_timestamps = _get_awips_timestamps(data_path)
+        awips_timestamps = _get_awips_timestamps(data_path, awips_timestamps)
 
         for band in bands:
             search_path = os.path.join(orbit_dir, data_dir, f'SSEC_AII_{sat_name}_viirs_{band}*.nc')
@@ -205,9 +205,7 @@ def _get_bands_and_sat_name(data_dir):
 
     return bands, sat_name
 
-def _get_awips_timestamps(data_dir):
-    awips_timestamps = set()
-    
+def _get_awips_timestamps(data_dir, awips_timestamps):
     files = glob.glob(os.path.join(data_dir, "*.nc"))
     pattern = re.compile(r'_(\d{4})\.nc$')
     
