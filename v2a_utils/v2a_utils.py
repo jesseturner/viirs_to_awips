@@ -96,7 +96,7 @@ def _get_orbits_by_filename_timestamp(filenames: list[str], start_time, end_time
     
     return orbits
 
-def _get_orbits_by_filename_all(filenames: list[str], start_time, end_time) -> set[str]:
+def _get_orbits_by_filename_all(filenames: list[str]) -> set[str]:
     orbits = set()
     for fname in filenames:
         orb = re.search(r"_b(\d{5})_", fname)
