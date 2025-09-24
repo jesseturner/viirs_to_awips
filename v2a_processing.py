@@ -12,7 +12,7 @@ current_date = datetime.now().strftime('%Y-%m-%d')
 current_hour = datetime.now().hour
 status = v2a.time_window_selector(status, duration_minutes=24)
 
-status = v2a.get_orbits_by_mod_time(status)
+status = v2a.get_files_by_mod_time(status)
 
 status = v2a.copy_files_locally(status)
 

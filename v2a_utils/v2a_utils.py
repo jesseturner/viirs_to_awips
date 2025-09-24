@@ -37,22 +37,11 @@ def time_window_selector(status, target_datetime_str=None, duration_minutes=15):
     
     print(f"Looking for data between {status['start_time'].strftime('%Y-%m-%d %H:%M UTC')} and {status['end_time'].strftime('%Y-%m-%d %H:%M UTC')}", flush=True)    
     return status
-    
-def get_orbits_by_timestamp(status):
-    filenames = _get_all_filenames(status['start_time'])
-    orbit_ids = _get_orbits_by_filename_timestamp(filenames, status['start_time'], status['end_time'])
-    status['orbits'] = orbit_ids
-    status['filenames'] = [f for f in filenames if any(f"b{orb}" in f for orb in orbit_ids)]
-    
-    return status
 
-def get_orbits_by_mod_time(status):
+def get_files_by_mod_time(status):
     filenames = _get_all_filenames(status['start_time'])
     filenames_mod_time = _filter_filenames_by_mod_time(filenames, status)
-    orbit_ids = _get_orbits_by_filename_all(filenames_mod_time, status['start_time'], status['end_time'])
-    status['orbits'] = orbit_ids
-    status['filenames'] = [f for f in filenames if any(f"b{orb}" in f for orb in orbit_ids)]
-    
+    status['filenames'] = filenames_mod_time
     return status
 
 def _get_all_filenames(start_time):
@@ -77,33 +66,6 @@ def _filter_filenames_by_mod_time(filenames, status):
         if status['start_time'] <= mod_time <= status['end_time']:
             filenames_mod_time.append(f)
     return filenames_mod_time
-
-def _get_timestamp_and_orbit(filename: str):
-    match = re.search(r"d(\d{8})_t(\d{6})\d?_.*_b(\d{5})_", filename)
-    if not match:
-        return None, None
-    date_str, time_str, orbit = match.groups()
-    timestamp = datetime.strptime(date_str + time_str, "%Y%m%d%H%M%S")
-    
-    return timestamp, orbit
-
-def _get_orbits_by_filename_timestamp(filenames: list[str], start_time, end_time) -> set[str]:
-    orbits = set()
-    for fname in filenames:
-        ts, orb = _get_timestamp_and_orbit(fname)
-        if ts and start_time <= ts <= end_time:
-            orbits.add(orb)
-    
-    return orbits
-
-def _get_orbits_by_filename_all(filenames: list[str]) -> set[str]:
-    orbits = set()
-    for fname in filenames:
-        orb = re.search(r"_b(\d{5})_", fname)
-        if orb:
-            orbits.add(orb.group(1))
-    
-    return orbits
 
 def summarize_lists_for_pprint(d, max_len=10):
     summarized = {}
