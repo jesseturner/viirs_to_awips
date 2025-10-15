@@ -10,7 +10,7 @@ status = v2a.create_logging(status)
 
 current_date = datetime.now().strftime('%Y-%m-%d')
 
-status = v2a.time_window_selector(status, target_datetime_str="2025-09-24 19:00", duration_minutes=24)
+status = v2a.time_window_selector(status, target_datetime_str="2025-10-14 19:00", duration_minutes=24)
 
 status = v2a.get_files_by_mod_time(status)
 

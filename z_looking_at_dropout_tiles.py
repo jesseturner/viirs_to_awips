@@ -4,8 +4,8 @@ import xarray as xr
 import numpy as np
 import io
 
-file_dropout = "3_to_ldm_recent/RAMMB_VIIRS_I05_20250930_0649_009.nc.gz"
-file_complete = "3_to_ldm_recent/RAMMB_VIIRS_I05_20250930_0649_010.nc.gz"
+file_dropout = "RAMMB_VIIRS_I05_20250930_0649_010.nc.gz"
+file_complete = "RAMMB_VIIRS_I05_20250930_0649_010.nc.gz"
 #--- Using the following:
 #  scp ldm@cira-ldm1:/home/ldm/products_sent/viirs_i/I05/RAMMB_VIIRS_I05_20250930_0649_010.nc.gz .
 file_ldm = "RAMMB_VIIRS_I05_20250930_0649_010.nc.gz"
