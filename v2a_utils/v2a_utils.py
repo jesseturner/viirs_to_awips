@@ -203,7 +203,7 @@ def _altering_metadata(filepath):
 
     #--- Changing I03 to 1.60 um so it doesn't replace M10 in AWIPS
     with Dataset(filepath, 'r+') as nc:
-        if nc.physical_element == "1.61 um" and nc.product_name == "I03":
+        if nc.physical_element == "1.61 um" and nc.product_name == "M10":
             nc.setncattr("physical_element", "1.60 um")
     return
 
