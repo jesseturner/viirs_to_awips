@@ -190,8 +190,21 @@ def _create_awips_file(filepath, band, output_dir):
 
     output_path = os.path.join(output_dir, new_filename)
 
+    _altering_metadata(filepath)
+
     with open(filepath, 'rb') as f_in, gzip.open(output_path, 'wb') as f_out:
         shutil.copyfileobj(f_in, f_out)
+
+    return
+
+def _altering_metadata(filepath):
+    #--- Using this requires the conda environment
+    from netCDF4 import Dataset
+
+    #--- Changing I03 to 1.60 um so it doesn't replace M10 in AWIPS
+    with Dataset(filepath, 'r+') as nc:
+        if nc.physical_element == "1.61 um" and nc.product_name == "I03":
+            nc.setncattr("physical_element", "1.60 um")
     return
 
 def calc_total_run_time(status):
