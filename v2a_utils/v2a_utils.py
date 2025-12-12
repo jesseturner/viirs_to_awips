@@ -78,7 +78,7 @@ def summarize_lists_for_pprint(d, max_len=10):
 
 def copy_files_locally(status):
 
-    _remove_leftover_files()
+    _remove_leftover_files(status)
 
     print(f"Copying {len(status['filenames'])} files locally...", flush=True)
     current_dtstamp = datetime.now().strftime('d%Y%m%dt%H%M%S')
@@ -102,11 +102,11 @@ def copy_files_locally(status):
     status['orbits'] = sat_orbits
     return status
 
-def _remove_leftover_files():
-    dir_path = "1_viirs_for_p2g"
-    leftover_files = os.listdir("1_viirs_for_p2g")
+def _remove_leftover_files(status):
+    dir_path = os.path.join(status['run_dir'], "1_viirs_for_p2g")
+    leftover_files = os.listdir(dir_path)
     if leftover_files:
-        print(f"Directory '{dir_path}' is not empty.")
+        print(f"Processing directory was not successfully emptied on previous run.")
         for filename in leftover_files:
             print(f"Potentially missed: {filename}")
             os.remove(os.path.join(dir_path, filename))
