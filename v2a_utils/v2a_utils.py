@@ -52,7 +52,7 @@ def _get_all_filenames(start_time):
 
     for sat in sats_to_process:
         for band in bands_to_process:
-            band_dir =  f"/mnt/jpssnas9/WI-CONUS/{sat}/SDR-{band}Band/{start_time.year}/{start_time.timetuple().tm_yday}/"
+            band_dir =  f"/mnt/jpssnas9/WI-CONUS/{sat}/SDR-{band}Band/{start_time.year}/{start_time.timetuple().tm_yday:03d}/"
             if os.listdir(band_dir):
                 full_paths = [os.path.join(band_dir, fname) for fname in os.listdir(band_dir)]
                 filenames.extend(full_paths)
@@ -105,11 +105,18 @@ def copy_files_locally(status):
 def _remove_leftover_files(status):
     dir_path = os.path.join(status['run_dir'], "1_viirs_for_p2g")
     leftover_files = os.listdir(dir_path)
+
     if leftover_files:
-        print(f"Processing directory was not successfully emptied on previous run.")
-        for filename in leftover_files:
-            print(f"Potentially missed: {filename}")
-            os.remove(os.path.join(dir_path, filename))
+        print("Processing directory was not successfully emptied on previous run.")
+
+        for name in leftover_files:
+            full_path = os.path.join(dir_path, name)
+            print(f"Potentially missed: {name}")
+
+            if os.path.isfile(full_path) or os.path.islink(full_path):
+                os.remove(full_path)
+            elif os.path.isdir(full_path):
+                shutil.rmtree(full_path)
 
     return
 
