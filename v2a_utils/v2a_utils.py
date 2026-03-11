@@ -53,9 +53,12 @@ def _get_all_filenames(start_time):
     for sat in sats_to_process:
         for band in bands_to_process:
             band_dir =  f"/mnt/jpssnas9/WI-CONUS/{sat}/SDR-{band}Band/{start_time.year}/{start_time.timetuple().tm_yday:03d}/"
-            if os.listdir(band_dir):
+
+            if os.path.isdir(band_dir):
                 full_paths = [os.path.join(band_dir, fname) for fname in os.listdir(band_dir)]
                 filenames.extend(full_paths)
+            else:
+                print(f"Missing directory for {sat} band {band}...")
 
     return filenames
 
